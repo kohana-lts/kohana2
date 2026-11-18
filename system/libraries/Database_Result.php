@@ -20,6 +20,9 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	// Return objects or arrays for each row
 	protected $return_objects;
 
+	// SQL of the query
+	protected $sql;
+
 	/**
 	 * Sets the total number of rows and stores the result locally.
 	 *
@@ -110,7 +113,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * ArrayAccess: offsetSet
 	 *
-	 * @throws  Kohana_Database_Exception
+	 * @throws  Kohana_Exception
 	 */
 	#[\ReturnTypeWillChange]
 	final public function offsetSet($offset, $value)
@@ -121,7 +124,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * ArrayAccess: offsetUnset
 	 *
-	 * @throws  Kohana_Database_Exception
+	 * @throws  Kohana_Exception
 	 */
 	#[\ReturnTypeWillChange]
 	final public function offsetUnset($offset)

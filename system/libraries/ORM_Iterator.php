@@ -254,23 +254,23 @@ class ORM_Iterator_Core implements Iterator, ArrayAccess, Countable {
 	/**
 	 * ArrayAccess: offsetSet
 	 *
-	 * @throws  Kohana_Database_Exception
+	 * @throws  Kohana_Exception
 	 */
 	#[\ReturnTypeWillChange]
 	public function offsetSet($offset, $value)
 	{
-		throw new Kohana_Database_Exception('database.result_read_only');
+		throw new Kohana_Exception('Database results are read-only');
 	}
 
 	/**
 	 * ArrayAccess: offsetUnset
 	 *
-	 * @throws  Kohana_Database_Exception
+	 * @throws  Kohana_Exception
 	 */
 	#[\ReturnTypeWillChange]
 	public function offsetUnset($offset)
 	{
-		throw new Kohana_Database_Exception('database.result_read_only');
+		throw new Kohana_Exception('Database results are read-only');
 	}
 
 } // End ORM Iterator

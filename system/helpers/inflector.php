@@ -339,7 +339,7 @@ class inflector_Core {
 	 */
 	public static function humanize($str)
 	{
-		return trim(preg_replace('/[_-\s]+/', ' ', $str));
+		return trim(preg_replace('/[_\s-]+/', ' ', $str));
 	}
 
 } // End inflector

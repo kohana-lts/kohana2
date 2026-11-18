@@ -156,7 +156,7 @@ class ORM_Core {
 		$this->reload_columns();
 
 		// Initialize the builder
-		$this->db_builder = db::build();
+		$this->db_builder = db::build($this->db);
 	}
 
 	/**

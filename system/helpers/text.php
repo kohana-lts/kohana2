@@ -589,7 +589,7 @@ class text_Core {
 		$format = ($format === NULL) ? '%01.2f %s' : (string) $format;
 
 		// IEC prefixes (binary)
-		if ($si == FALSE OR strpos($force_unit, 'i') !== FALSE)
+		if ($si == FALSE OR strpos((string) $force_unit, 'i') !== FALSE)
 		{
 			$units = array(__('B'), __('KiB'), __('MiB'), __('GiB'), __('TiB'), __('PiB'));
 			$mod   = 1024;
