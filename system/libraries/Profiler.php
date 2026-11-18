@@ -8,6 +8,9 @@
  * POST Data    - The name and values of any POST data submitted to the current page.
  * Cookie Data  - All cookies sent for the current request.
  *
+ * The Profiler never renders when IN_PRODUCTION is TRUE: its output shows
+ * cookies, session data and SQL.
+ *
  * @package    Kohana
  * @author     Kohana Team
  * @copyright  (c) 2007-2009 Kohana Team
@@ -25,6 +28,12 @@ class Profiler_Core {
 	 */
 	public static function enable()
 	{
+		if (IN_PRODUCTION)
+		{
+			Kohana_Log::add('alert', 'Profiler not enabled, because IN_PRODUCTION is TRUE');
+			return;
+		}
+
 		// Add all built in profiles to event
 		Event::add('profiler.run', array('Profiler', 'benchmarks'));
 		Event::add('profiler.run', array('Profiler', 'database'));
@@ -89,6 +98,9 @@ class Profiler_Core {
 	 */
 	public static function render($return = FALSE)
 	{
+		if (IN_PRODUCTION)
+			return ($return === TRUE) ? '' : NULL;
+
 		$start = microtime(TRUE);
 
 		// Determine the profiles that should be shown
