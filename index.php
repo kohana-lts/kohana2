@@ -95,7 +95,9 @@ define('SYSPATH', str_replace('\\', '/', realpath($kohana_system)).'/');
 // Clean up
 unset($kohana_application, $kohana_modules, $kohana_system);
 
-if (file_exists(DOCROOT.'install'.EXT) AND is_readable(DOCROOT.'install'.EXT))
+// The install page shows paths and versions, so it never runs in production
+if ( ! IN_PRODUCTION AND strtoupper((string) getenv('KOHANA_ENV')) !== 'PRODUCTION'
+	AND file_exists(DOCROOT.'install'.EXT) AND is_readable(DOCROOT.'install'.EXT))
 {
 	// Load the installation tests
 	include DOCROOT.'install'.EXT;
