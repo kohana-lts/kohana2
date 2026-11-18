@@ -45,15 +45,17 @@ class DatabaseMysqlTest extends Kohana_TestCase {
 		}
 
 		$this->db = Database::instance('kt_mysql');
-		$this->db->query('DROP TABLE IF EXISTS kt_items');
-		$this->db->query('CREATE TABLE kt_items (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, score INT NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+		// Never drop tables: create the table once, then empty it and reset the ids
+		$this->db->query('CREATE TABLE IF NOT EXISTS kt_items (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, score INT NOT NULL DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+		$this->db->query('DELETE FROM kt_items');
+		$this->db->query('ALTER TABLE kt_items AUTO_INCREMENT = 1');
 	}
 
 	protected function tearDown(): void
 	{
 		if ($this->db)
 		{
-			$this->db->query('DROP TABLE IF EXISTS kt_items');
+			$this->db->query('DELETE FROM kt_items');
 		}
 
 		parent::tearDown();
