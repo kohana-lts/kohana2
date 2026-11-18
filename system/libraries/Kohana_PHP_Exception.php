@@ -89,7 +89,10 @@ class Kohana_PHP_Exception_Core extends Kohana_Exception {
 	 */
 	public static function shutdown_handler()
 	{
-		if (Kohana_PHP_Exception::$enabled AND $error = error_get_last() AND (error_reporting() & $error['type']))
+		// The error handler already saw non-fatal errors, also the ones that @ silenced
+		$fatal = E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR;
+
+		if (Kohana_PHP_Exception::$enabled AND $error = error_get_last() AND ($error['type'] & $fatal) AND (error_reporting() & $error['type']))
 		{
 			// Fake an exception for nice debugging
 			Kohana_Exception::handle(new Kohana_PHP_Exception($error['type'], $error['message'], $error['file'], $error['line']));
