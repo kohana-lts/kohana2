@@ -807,6 +807,12 @@ abstract class Kohana_Core {
 	}
 
 	/**
+	 * @var  boolean  find_file() accepts only files whose realpath() is inside
+	 * the include path. Set FALSE to allow symlinks that point outside.
+	 */
+	public static $find_file_realpath_check = TRUE;
+
+	/**
 	 * Find a resource file in a given directory. Files will be located according
 	 * to the order of the include paths. Configuration, messages and i18n files will be
 	 * returned in reverse order.
@@ -837,6 +843,16 @@ abstract class Kohana_Core {
 	 */
 	public static function find_file($directory, $filename, $required = FALSE, $ext = FALSE)
 	{
+		if ( ! Kohana::find_file_name_valid($directory) OR ! Kohana::find_file_name_valid($filename)
+			OR ! Kohana::find_file_name_valid($ext))
+		{
+			// Never cache these: input could fill the internal cache
+			if ($required === TRUE)
+				throw new Kohana_Exception('The requested :resource:, :file:, could not be found', array(':resource:' => __($directory), ':file:' => $filename));
+
+			return FALSE;
+		}
+
 		// NOTE: This test MUST be not be a strict comparison (===), or empty
 		// extensions will be allowed!
 		if ($ext == '')
@@ -869,7 +885,7 @@ abstract class Kohana_Core {
 
 			foreach ($paths as $path)
 			{
-				if (is_file($path.$search))
+				if (is_file($path.$search) AND Kohana::find_file_inside($path, $path.$search))
 				{
 					// A matching file has been found
 					$found[] = $path.$search;
@@ -880,7 +896,7 @@ abstract class Kohana_Core {
 		{
 			foreach ($paths as $path)
 			{
-				if (is_file($path.$search))
+				if (is_file($path.$search) AND Kohana::find_file_inside($path, $path.$search))
 				{
 					// A matching file has been found
 					$found = $path.$search;
@@ -912,6 +928,43 @@ abstract class Kohana_Core {
 		}
 
 		return Kohana::$internal_cache['find_file_paths'][Kohana::$include_paths_hash][$search] = $found;
+	}
+
+	/**
+	 * Checks a find_file() argument: no NUL byte, backslash, leading slash
+	 * or ".." segment, so the path cannot leave the include path.
+	 *
+	 * @param   string  directory, file name or extension
+	 * @return  boolean
+	 */
+	protected static function find_file_name_valid($name)
+	{
+		$name = (string) $name;
+
+		return (strpos($name, "\0") === FALSE
+			AND strpos($name, '\\') === FALSE
+			AND substr($name, 0, 1) !== '/'
+			AND ! preg_match('#(?:^|/)\.\.(?:/|$)#', $name));
+	}
+
+	/**
+	 * Checks that the realpath() of a file is inside the realpath() of an
+	 * include path. See Kohana::$find_file_realpath_check.
+	 *
+	 * @param   string  include path
+	 * @param   string  file path
+	 * @return  boolean
+	 */
+	protected static function find_file_inside($path, $file)
+	{
+		if ( ! Kohana::$find_file_realpath_check)
+			return TRUE;
+
+		$path = realpath($path);
+		$file = realpath($file);
+
+		return ($path !== FALSE AND $file !== FALSE
+			AND strpos($file, rtrim($path, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR) === 0);
 	}
 
 	/**
