@@ -27,21 +27,6 @@ $scenario = json_decode((string) getenv('KOHANA_TEST_SCENARIO'), TRUE);
 
 $result = array('results' => array(), 'error' => NULL, 'notices' => array());
 
-// Prints the result last, also after exit() in url::redirect()
-register_shutdown_function(function () use ( & $result)
-{
-	while (ob_get_level() > 0)
-	{
-		ob_end_clean();
-	}
-
-	$result['session_id'] = session_id();
-	$result['session'] = isset($_SESSION) ? $_SESSION : NULL;
-	$result['headers'] = headers_list();
-
-	echo "\n@@RESULT@@", json_encode($result, JSON_PARTIAL_OUTPUT_ON_ERROR);
-});
-
 define('SYSTEM_BENCHMARK', 'system_benchmark');
 
 require SYSPATH.'core/Benchmark'.EXT;
@@ -62,12 +47,32 @@ final class Kohana_Config extends Kohana_Config_Core {}
 
 Kohana::setup();
 
+// Prints the result after Kohana::shutdown(), also after exit() in url::redirect()
+register_shutdown_function(function () use ( & $result)
+{
+	while (ob_get_level() > 0)
+	{
+		ob_end_clean();
+	}
+
+	$result['session_id'] = session_id();
+	$result['session'] = isset($_SESSION) ? $_SESSION : NULL;
+	$result['headers'] = headers_list();
+
+	echo "\n@@RESULT@@", json_encode($result, JSON_PARTIAL_OUTPUT_ON_ERROR);
+});
+
 restore_error_handler();
 restore_exception_handler();
 
-set_error_handler(function ($code, $message) use ( & $result)
+set_error_handler(function ($code, $message, $file) use ( & $result)
 {
-	$result['notices'][] = $message;
+	// The log directory may be missing in a test checkout
+	if (strpos(str_replace('\\', '/', $file), 'drivers/Log/') === FALSE)
+	{
+		$result['notices'][] = $message;
+	}
+
 	return TRUE;
 });
 
@@ -75,8 +80,6 @@ foreach ((array) $scenario['ini'] as $name => $value)
 {
 	ini_set($name, $value);
 }
-
-Kohana_Config::instance()->set('log.log_threshold', 0);
 
 foreach ((array) $scenario['config'] as $key => $value)
 {

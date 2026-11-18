@@ -156,8 +156,8 @@ class Session_Database_Driver implements Session_Driver {
 
 	public function regenerate()
 	{
-		// Generate a new session id
-		session_regenerate_id();
+		// Delete the old row: PHP reads the new ID, so write() cannot rename the row
+		session_regenerate_id(TRUE);
 
 		// Return new session id
 		return session_id();

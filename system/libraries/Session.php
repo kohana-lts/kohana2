@@ -242,15 +242,7 @@ class Session_Core {
 										   array(':driver:' => Session::$config['driver'], ':library:' => get_class($this), ':interface:' => 'Session_Driver'));
 
 			// Register non-native driver as the session handler
-			session_set_save_handler
-			(
-				array(Session::$driver, 'open'),
-				array(Session::$driver, 'close'),
-				array(Session::$driver, 'read'),
-				array(Session::$driver, 'write'),
-				array(Session::$driver, 'destroy'),
-				array(Session::$driver, 'gc')
-			);
+			session_set_save_handler(new Session_Driver_Handler(Session::$driver), FALSE);
 		}
 
 		// Validate the session name
