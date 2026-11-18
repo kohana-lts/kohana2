@@ -7,56 +7,56 @@
  * @copyright  (c) 2008-2009 Kohana Team
  * @license    http://kohanaphp.com/license
  */
+defined('RUNS_MYSQLND') OR define('RUNS_MYSQLND', function_exists('mysqli_fetch_all'));
+
 class Database_Mysql_Core extends Database {
 
 	// Quote character to use for identifiers (tables/columns/aliases)
 	protected $quote = '`';
 
-	// Use SET NAMES to set the character set
-	protected static $set_names;
-
+	/**
+	 * PHP 7.0 removed ext/mysql, so this driver uses MySQLi. Both "mysql"
+	 * and "mysqli" configurations use it.
+	 */
 	public function connect()
 	{
-		if ($this->connection)
+		if (is_object($this->connection))
 			return;
 
-		if (Database_Mysql::$set_names === NULL)
-		{
-			// Determine if we can use mysql_set_charset(), which is only
-			// available on PHP 5.2.3+ when compiled against MySQL 5.0+
-			Database_Mysql::$set_names = ! function_exists('mysql_set_charset');
-		}
-
-		extract($this->config['connection']);
+		extract($this->config['connection'] + array(
+			'host'     => NULL,
+			'socket'   => NULL,
+			'port'     => NULL,
+			'user'     => NULL,
+			'pass'     => NULL,
+			'database' => NULL,
+			'params'   => 0,
+		));
 
 		$host = isset($host) ? $host : $socket;
-		$port = isset($port) ? ':'.$port : '';
+
+		if ($this->config['persistent'] === TRUE AND strncmp((string) $host, 'p:', 2) !== 0)
+		{
+			$host = 'p:'.$host;
+		}
+
+		$mysqli = mysqli_init();
 
 		try
 		{
-			// Connect to the database
-			$this->connection = ($this->config['persistent'] === TRUE)
-				? mysql_pconnect($host.$port, $user, $pass, $params)
-				: mysql_connect($host.$port, $user, $pass, TRUE, $params);
+			$connected = $mysqli->real_connect($host, $user, $pass, $database, $port === NULL ? NULL : (int) $port, $socket, (int) $params);
 		}
-		catch (Kohana_PHP_Exception $e)
+		catch (mysqli_sql_exception $e)
 		{
-			// No connection exists
-			$this->connection = NULL;
-
-			// Unable to connect to the database
-			throw new Database_Exception('#:errno: :error',
-				array(':error' => mysql_error(),
-				':errno' => mysql_errno()));
+			// PHP 8.1 enables mysqli exceptions by default
+			$connected = FALSE;
 		}
 
-		if ( ! mysql_select_db($database, $this->connection))
-		{
-			// Unable to select database
+		if ( ! $connected)
 			throw new Database_Exception('#:errno: :error',
-				array(':error' => mysql_error($this->connection),
-				':errno' => mysql_errno($this->connection)));
-		}
+				array(':error' => $mysqli->connect_error, ':errno' => $mysqli->connect_errno));
+
+		$this->connection = $mysqli;
 
 		if (isset($this->config['character_set']))
 		{
@@ -67,76 +67,73 @@ class Database_Mysql_Core extends Database {
 
 	public function disconnect()
 	{
-		try
+		if (is_object($this->connection))
 		{
-			// Database is assumed disconnected
-			$status = TRUE;
-
-			if (is_resource($this->connection))
+			try
 			{
-				$status = mysql_close($this->connection);
+				$this->connection->close();
+			}
+			catch (Throwable $e)
+			{
+				// The connection is already closed
 			}
 		}
-		catch (Exception $e)
-		{
-			// Database is probably not disconnected
-			$status = is_resource($this->connection);
-		}
 
-		return $status;
+		$this->connection = NULL;
+
+		return TRUE;
 	}
 
 	public function set_charset($charset)
 	{
 		// Make sure the database is connected
-		$this->connection or $this->connect();
+		is_object($this->connection) or $this->connect();
 
-		if (Database_Mysql::$set_names === TRUE)
+		try
 		{
-			// PHP is compiled against MySQL 4.x
-			$status = (bool) mysql_query('SET NAMES '.$this->quote($charset), $this->connection);
+			$status = $this->connection->set_charset($charset);
 		}
-		else
+		catch (mysqli_sql_exception $e)
 		{
-			// PHP is compiled against MySQL 5.x
-			$status = mysql_set_charset($charset, $this->connection);
+			$status = FALSE;
 		}
 
-		if ($status === FALSE)
+		if ( ! $status)
 		{
 			// Unable to set charset
 			throw new Database_Exception('#:errno: :error',
-				array(':error' => mysql_error($this->connection),
-				':errno' => mysql_errno($this->connection)));
+				array(':error' => $this->connection->error,
+				':errno' => $this->connection->errno));
 		}
 	}
 
 	public function query_execute($sql)
 	{
 		// Make sure the database is connected
-		$this->connection or $this->connect();
+		is_object($this->connection) or $this->connect();
 
-		$result = mysql_query($sql, $this->connection);
+		try
+		{
+			$result = $this->connection->query($sql);
+		}
+		catch (mysqli_sql_exception $e)
+		{
+			// Database_Mysqli_Result throws a Database_Exception for FALSE
+			$result = FALSE;
+		}
 
 		// Set the last query
 		$this->last_query = $sql;
 
-		return new Database_Mysql_Result($result, $sql, $this->connection, $this->config['object']);
+		return new Database_Mysqli_Result($result, $sql, $this->connection, $this->config['object']);
 	}
 
 	public function escape($value)
 	{
 		// Make sure the database is connected
-		$this->connection or $this->connect();
+		is_object($this->connection) or $this->connect();
 
-		if (($value = mysql_real_escape_string($value, $this->connection)) === FALSE)
-		{
-			throw new Database_Exception('#:errno: :error',
-				array(':error' => mysql_error($this->connection),
-				':errno' => mysql_errno($this->connection)));
-		}
-
-		return $value;
+		return $this->connection->real_escape_string((string) $value);
 	}
 
 	public function list_constraints($table)
