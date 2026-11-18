@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.');
 /**
- * Memcache-based Cache driver.
+ * File-based Cache driver.
  *
  * $Id: File.php 4605 2009-09-14 17:22:21Z kiall $
  *
@@ -23,9 +23,10 @@ class Cache_File_Driver extends Cache_Driver {
 	}
 
 	/**
-	 * Finds an array of files matching the given id or tag.
+	 * Finds the cache files for keys or tags. File names are
+	 * "sha1(key)~tag hashes~expiry", so no key or tag reaches glob().
 	 *
-	 * @param  string  cache key or tag
+	 * @param  mixed   cache keys, tags, or TRUE for all files
 	 * @param  bool    search for tags
 	 * @return array   of filenames matching the id or tag
 	 */
@@ -34,41 +35,21 @@ class Cache_File_Driver extends Cache_Driver {
 		if ($keys === TRUE)
 		{
 			// Find all the files
-			return glob($this->config['directory'].'*~*~*');
+			return glob($this->config['directory'].'*~*~*') ?: array();
 		}
 		elseif ($tag === TRUE)
 		{
-			// Find all the files that have the tag name
-			$paths = array();
+			$hashes = array_map(array($this, 'tag_hash'), (array) $keys);
 
-			foreach ( (array) $keys as $tag)
-			{
-				$paths = array_merge($paths, glob($this->config['directory'].'*~*'.$tag.'*~*'));
-			}
-
-			// Find all tags matching the given tag
 			$files = array();
 
-			foreach ($paths as $path)
+			foreach (glob($this->config['directory'].'*~*~*') ?: array() as $path)
 			{
-				// Split the files
-				$tags = explode('~', basename($path));
+				$parts = explode('~', basename($path));
 
-				// Find valid tags
-				if (count($tags) !== 3 OR empty($tags[1]))
-					continue;
-
-				// Split the tags by plus signs, used to separate tags
-				$item_tags = explode('+', $tags[1]);
-
-				// Check each supplied tag, and match aginst the tags on each item.
-				foreach ($keys as $tag)
+				if (count($parts) === 3 AND $parts[1] !== '' AND array_intersect(explode('+', $parts[1]), $hashes))
 				{
-					if (in_array($tag, $item_tags))
-					{
-						// Add the file to the array, it has the requested tag
-						$files[] = $path;
-					}
+					$files[] = $path;
 				}
 			}
 
@@ -78,14 +59,24 @@ class Cache_File_Driver extends Cache_Driver {
 		{
 			$paths = array();
 
-			foreach ( (array) $keys as $key)
+			foreach ((array) $keys as $key)
 			{
-				// Find the file matching the given key
-				$paths = array_merge($paths, glob($this->config['directory'].str_replace(array('/', '\\', ' '), '_', $key).'~*'));
+				$paths = array_merge($paths, glob($this->config['directory'].sha1((string) $key).'~*') ?: array());
 			}
 
 			return $paths;
 		}
+	}
+
+	/**
+	 * Returns the file name part for one tag.
+	 *
+	 * @param   string  tag
+	 * @return  string
+	 */
+	protected function tag_hash($tag)
+	{
+		return substr(sha1((string) $tag), 0, 16);
 	}
 
 	public function set($items, $tags = NULL, $lifetime = NULL)
@@ -96,12 +87,9 @@ class Cache_File_Driver extends Cache_Driver {
 			$lifetime += time();
 		}
 
+		$tags = empty($tags) ? array() : array_values(array_map('strval', (array) $tags));
 
-		if ( ! is_null($tags) AND ! empty($tags))
-		{
-			// Convert the tags into a string list
-			$tags = implode('+', (array) $tags);
-		}
+		$tag_hashes = implode('+', array_unique(array_map(array($this, 'tag_hash'), $tags)));
 
 		$success = TRUE;
 
@@ -113,7 +101,9 @@ class Cache_File_Driver extends Cache_Driver {
 			// Remove old cache file
 			$this->delete($key);
 
-			if ( ! (bool) file_put_contents($this->config['directory'].str_replace(array('/', '\\', ' '), '_', $key).'~'.$tags.'~'.$lifetime, serialize($value)))
+			$data = serialize(array('key' => (string) $key, 'tags' => $tags, 'value' => $value));
+
+			if ( ! (bool) file_put_contents($this->config['directory'].sha1((string) $key).'~'.$tag_hashes.'~'.$lifetime, $data, LOCK_EX))
 			{
 				$success = FALSE;
 			}
@@ -122,38 +112,48 @@ class Cache_File_Driver extends Cache_Driver {
 		return $success;
 	}
 
+	/**
+	 * Reads a cache file.
+	 *
+	 * @param   string  file path
+	 * @return  array   key, tags and value, or NULL for a missing, expired or old-format file
+	 */
+	protected function read($file)
+	{
+		if ($this->expired($file))
+			return NULL;
+
+		// Turn off errors while reading the file
+		$ER = error_reporting(0);
+
+		$data = file_get_contents($file);
+
+		error_reporting($ER);
+
+		if ($data === FALSE)
+			return NULL;
+
+		$data = unserialize($data);
+
+		if ( ! is_array($data) OR ! isset($data['key'], $data['tags']) OR ! array_key_exists('value', $data))
+			return NULL;
+
+		return $data;
+	}
+
 	public function get($keys, $single = FALSE)
 	{
 		$items = array();
 
-		if ($files = $this->exists($keys))
+		foreach ((array) $keys as $key)
 		{
-			// Turn off errors while reading the files
-			$ER = error_reporting(0);
-
-			foreach ($files as $file)
+			foreach ($this->exists($key) as $file)
 			{
-				// Validate that the item has not expired
-				if ($this->expired($file))
-					continue;
-
-				list($key, $junk) = explode('~', basename($file), 2);
-
-				if (($data = file_get_contents($file)) !== FALSE)
+				if (($data = $this->read($file)) !== NULL AND $data['key'] === (string) $key)
 				{
-					// Unserialize the data
-					$data = unserialize($data);
+					$items[$data['key']] = $data['value'];
 				}
-				else
-				{
-					$data = NULL;
-				}
-
-				$items[$key] = $data;
 			}
-
-			// Turn errors back on
-			error_reporting($ER);
 		}
 
 		// Reutrn a single item if only one key was requested
@@ -175,19 +175,13 @@ class Cache_File_Driver extends Cache_Driver {
 		// An array will always be returned
 		$result = array();
 
-		if ($paths = $this->exists($tags, TRUE))
-		{
-			// Find all the files with the given tag
-			foreach ($paths as $path)
-			{
-				// Get the id from the filename
-				list($key, $junk) = explode('~', basename($path), 2);
+		$tags = array_map('strval', (array) $tags);
 
-				if (($data = $this->get($key, TRUE)) !== FALSE)
-				{
-					// Add the result to the array
-					$result[$key] = $data;
-				}
+		foreach ($this->exists($tags, TRUE) as $path)
+		{
+			if (($data = $this->read($path)) !== NULL AND array_intersect($tags, $data['tags']))
+			{
+				$result[$data['key']] = $data['value'];
 			}
 		}
 
@@ -231,7 +225,7 @@ class Cache_File_Driver extends Cache_Driver {
 	}
 
 	/**
-	 * Empty the cache
+	 * Empty the cache. This also removes files in the old "key~tags~expiry" format.
 	 */
 	public function delete_all()
 	{
