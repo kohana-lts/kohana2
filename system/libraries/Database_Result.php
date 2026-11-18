@@ -80,6 +80,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * Countable: count
 	 */
+	#[\ReturnTypeWillChange]
 	public function count()
 	{
 		return $this->total_rows;
@@ -88,6 +89,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * ArrayAccess: offsetExists
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetExists($offset)
 	{
 		return ($offset >= 0 AND $offset < $this->total_rows);
@@ -96,6 +98,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * ArrayAccess: offsetGet
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
 		if ( ! $this->seek($offset))
@@ -109,6 +112,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	 *
 	 * @throws  Kohana_Database_Exception
 	 */
+	#[\ReturnTypeWillChange]
 	final public function offsetSet($offset, $value)
 	{
 		throw new Kohana_Exception('Database results are read-only');
@@ -119,6 +123,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	 *
 	 * @throws  Kohana_Database_Exception
 	 */
+	#[\ReturnTypeWillChange]
 	final public function offsetUnset($offset)
 	{
 		throw new Kohana_Exception('Database results are read-only');
@@ -127,6 +132,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * Iterator: key
 	 */
+	#[\ReturnTypeWillChange]
 	public function key()
 	{
 		return $this->current_row;
@@ -135,6 +141,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * Iterator: next
 	 */
+	#[\ReturnTypeWillChange]
 	public function next()
 	{
 		++$this->current_row;
@@ -153,6 +160,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * Iterator: rewind
 	 */
+	#[\ReturnTypeWillChange]
 	public function rewind()
 	{
 		$this->current_row = 0;
@@ -162,6 +170,7 @@ abstract class Database_Result_Core implements Countable, Iterator, SeekableIter
 	/**
 	 * Iterator: valid
 	 */
+	#[\ReturnTypeWillChange]
 	public function valid()
 	{
 		return $this->offsetExists($this->current_row);

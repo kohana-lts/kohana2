@@ -128,6 +128,7 @@ class Database_Mysql_Result_Core extends Database_Result {
 	/**
 	 * SeekableIterator: seek
 	 */
+	#[\ReturnTypeWillChange]
 	public function seek($offset)
 	{
 		if ($this->offsetExists($offset) AND mysql_data_seek($this->result, $offset))
@@ -146,6 +147,7 @@ class Database_Mysql_Result_Core extends Database_Result {
 	/**
 	 * Iterator: current
 	 */
+	#[\ReturnTypeWillChange]
 	public function current()
 	{
 		if ($this->current_row !== $this->internal_row AND ! $this->seek($this->current_row))

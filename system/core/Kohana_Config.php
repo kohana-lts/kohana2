@@ -230,6 +230,7 @@ class Kohana_Config_Core implements ArrayAccess {
 	 * @return  mixed
 	 * @access  public
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($key)
 	{
 		foreach ($this->drivers as $driver)
@@ -256,6 +257,7 @@ class Kohana_Config_Core implements ArrayAccess {
 	 * @return  bool
 	 * @access  public
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetSet($key, $value)
 	{
 		foreach ($this->drivers as $driver)
@@ -282,6 +284,7 @@ class Kohana_Config_Core implements ArrayAccess {
 	 * @return  bool
 	 * @access  public
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetExists($key)
 	{
 		foreach ($this->drivers as $driver)
@@ -307,6 +310,7 @@ class Kohana_Config_Core implements ArrayAccess {
 	 * @return  bool
 	 * @access  public
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetUnset($key)
 	{
 		foreach ($this->drivers as $driver)

@@ -54,7 +54,8 @@ class Database_Cache_Result_Core extends Database_Result {
 		return $this;
 	}
 
-	public function seek($offset)
+	#[\ReturnTypeWillChange]
+		public function seek($offset)
 	{
 		if ( ! $this->offsetExists($offset))
 			return FALSE;
@@ -64,7 +65,8 @@ class Database_Cache_Result_Core extends Database_Result {
 		return TRUE;
 	}
 
-	public function current()
+	#[\ReturnTypeWillChange]
+		public function current()
 	{
 		if ($this->return_objects)
 		{
