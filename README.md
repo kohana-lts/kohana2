@@ -51,8 +51,8 @@ To see every change of this fork, run:
 
 Replace the `system/` directory of your application with the directory of
 this repository. Then read [UPGRADING.md](UPGRADING.md) and update your
-configuration. Set `IN_PRODUCTION` to `TRUE` in `index.php` on production
-servers.
+configuration. Set `KOHANA_ENV=PRODUCTION` in the environment of production
+servers (or set `IN_PRODUCTION` to `TRUE` in `index.php`).
 
 ## Run the tests
 

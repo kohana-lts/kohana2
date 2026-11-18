@@ -9,12 +9,14 @@
 
 /**
  * Define the website environment status. When this flag is set to TRUE, some
- * module demonstration controllers will result in 404 errors. For more information
+ * module demonstration controllers will result in 404 errors, the Profiler does
+ * not render and error pages show no details. The KOHANA_ENV environment value
+ * PRODUCTION sets it. You can also set it to TRUE here. For more information
  * about this option, read the documentation about deploying Kohana.
  *
  * @see http://docs.kohanaphp.com/installation/deployment
  */
-define('IN_PRODUCTION', FALSE);
+define('IN_PRODUCTION', strtoupper((string) getenv('KOHANA_ENV')) === 'PRODUCTION');
 
 /**
  * Website application directory. This directory should contain your application
@@ -59,7 +61,7 @@ error_reporting(E_ALL);
  * Turning off display_errors will effectively disable Kohana error display
  * and logging. You can turn off Kohana errors in application/config/config.php
  */
-ini_set('display_errors', TRUE);
+ini_set('display_errors', ! IN_PRODUCTION);
 
 /**
  * If you rename all of your .php files to a different extension, set the new

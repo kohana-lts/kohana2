@@ -117,12 +117,13 @@ $config['global_xss_filtering'] = FALSE;
  */
 $config['enable_hooks'] = FALSE;
 /**
- * Enable or disable displaying of Kohana error pages. This will not affect
- * logging. Turning this off will disable ALL error pages.
+ * Enable or disable displaying of Kohana error pages with details (message,
+ * source, trace, request data). This will not affect logging. When it is FALSE,
+ * the error page shows no details.
  *
- * @default TRUE
+ * @default ! IN_PRODUCTION
  */
-$config['display_errors'] = TRUE;
+$config['display_errors'] = ! IN_PRODUCTION;
 
 /**
  * Enable or disable statistics in the final output. Stats are replaced via

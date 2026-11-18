@@ -30,9 +30,18 @@ old public values ('K0hAN4 15 Th3 B357', 'K0H@NA+PHP_7hE-SW!FtFraM3w0R|<' and
 (any Host header), which is not safe. Alternatively, put the host into
 `site_domain`.
 
-Set `IN_PRODUCTION` to `TRUE` in `index.php` on production servers, or set
-`KOHANA_ENV=PRODUCTION`. In production, the Profiler does not render and
-`index.php` does not run `install.php`.
+Set the environment value `KOHANA_ENV=PRODUCTION` on production servers, or
+set `IN_PRODUCTION` to `TRUE` in `index.php`. In production:
+
+- error pages show no details (`display_errors` defaults to `! IN_PRODUCTION`
+  in `application/config/config.php`),
+- the Profiler does not render,
+- `index.php` does not run `install.php`,
+- demonstration controllers with `ALLOW_PRODUCTION = FALSE` (for example the
+  Welcome controller) give a 404.
+
+Copy the new `display_errors` line into your application config, or set it
+yourself: the old default was TRUE in every environment.
 
 ## Encryption
 
