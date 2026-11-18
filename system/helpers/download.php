@@ -35,9 +35,34 @@ class download_Core {
 	{
 		$filename = basename($filename);
 
-		header('Content-Disposition: attachment; filename="'.$filename.'"');
+		header('Content-Disposition: '.download::disposition($filename));
 
 		return $filename;
+	}
+
+	/**
+	 * Returns a Content-Disposition header value for an attachment (RFC 6266).
+	 * The quoted filename is an ASCII fallback without quotes, backslashes,
+	 * percent signs and control characters. A filename* parameter carries
+	 * the full UTF-8 name when the fallback is different.
+	 *
+	 * @param   string  $filename  file name
+	 * @return  string
+	 */
+	public static function disposition($filename)
+	{
+		$filename = basename($filename);
+
+		$fallback = preg_replace('/[^\x20-\x7E]|["\\\\%]/', '_', $filename);
+
+		$value = 'attachment; filename="'.$fallback.'"';
+
+		if ($fallback !== $filename)
+		{
+			$value .= "; filename*=UTF-8''".rawurlencode($filename);
+		}
+
+		return $value;
 	}
 
 	/**

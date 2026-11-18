@@ -89,48 +89,11 @@ class Input_Core {
 		{
 			// PHP 5.4 removed magic quotes, so $this->magic_quotes_gpc stays FALSE
 
-			if (is_array($_GET))
-			{
-				foreach ($_GET as $key => $val)
-				{
-					// Sanitize $_GET
-					$_GET[$this->clean_input_keys($key)] = $this->clean_input_data($val);
-				}
-			}
-			else
-			{
-				$_GET = array();
-			}
+			$_GET  = $this->clean_input_array($_GET);
+			$_POST = $this->clean_input_array($_POST);
 
-			if (is_array($_POST))
-			{
-				foreach ($_POST as $key => $val)
-				{
-					// Sanitize $_POST
-					$_POST[$this->clean_input_keys($key)] = $this->clean_input_data($val);
-				}
-			}
-			else
-			{
-				$_POST = array();
-			}
-
-			if (is_array($_COOKIE))
-			{
-				foreach ($_COOKIE as $key => $val)
-				{
-					// Ignore special attributes in RFC2109 compliant cookies
-					if ($key == '$Version' OR $key == '$Path' OR $key == '$Domain')
-						continue;
-
-					// Sanitize $_COOKIE
-					$_COOKIE[$this->clean_input_keys($key)] = $this->clean_input_data($val);
-				}
-			}
-			else
-			{
-				$_COOKIE = array();
-			}
+			// Keep the special attributes of RFC 2109 cookies
+			$_COOKIE = $this->clean_input_array($_COOKIE, array('$Version', '$Path', '$Domain'));
 
 			// Create a singleton
 			Input::$instance = $this;
@@ -541,21 +504,56 @@ class Input_Core {
 	}
 
 	/**
+	 * Cleans the keys and the values of a global array. Removes the items
+	 * with a disallowed key.
+	 *
+	 * @param   mixed  $array  global array
+	 * @param   array  $keep   keys to keep without cleaning
+	 * @return  array
+	 */
+	protected function clean_input_array($array, array $keep = array())
+	{
+		if ( ! is_array($array))
+			return array();
+
+		$clean = array();
+
+		foreach ($array as $key => $val)
+		{
+			if (in_array($key, $keep, TRUE))
+			{
+				$clean[$key] = $val;
+			}
+			elseif (($key = $this->clean_input_keys($key)) !== FALSE)
+			{
+				$clean[$key] = $this->clean_input_data($val);
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
 	 * This is a helper method. It enforces W3C specifications for allowed
 	 * key name strings, to prevent malicious exploitation.
+	 *
+	 * A disallowed key is logged and returns FALSE. The caller must drop it:
+	 * a foreign cookie name must not stop the request.
 	 *
 	 * ##### Example
 	 *
 	 *    $clean = $input->clean_input_keys($input);
 	 *
 	 * @param   string  $str  String to clean
-	 * @return  string
+	 * @return  string|FALSE  the key, or FALSE when it is not allowed
 	 */
 	public function clean_input_keys($str)
 	{
-		if ( ! preg_match('#^[\pL0-9:_.-]++$#uD', $str))
+		if ( ! preg_match('#^[\pL0-9:_.-]++$#uD', (string) $str))
 		{
-			exit('Disallowed key characters in global data.');
+			Kohana_Log::add('alert', 'Input: dropped a global data key with disallowed characters: '.preg_replace('/[^\x20-\x7E]/', '?', substr($str, 0, 64)));
+
+			return FALSE;
 		}
 
 		return $str;
@@ -579,8 +577,11 @@ class Input_Core {
 			$new_array = array();
 			foreach ($str as $key => $val)
 			{
-				// Recursion!
-				$new_array[$this->clean_input_keys($key)] = $this->clean_input_data($val);
+				if (($key = $this->clean_input_keys($key)) !== FALSE)
+				{
+					// Recursion!
+					$new_array[$key] = $this->clean_input_data($val);
+				}
 			}
 			return $new_array;
 		}
@@ -624,8 +625,16 @@ class Input_Core {
 		{
 			foreach ($str as $key => $val)
 			{
+				$clean_key = Input::clean($key);
+
+				if ($clean_key !== $key)
+				{
+					// Remove the uncleaned key
+					unset($str[$key]);
+				}
+
 				// Recursion!
-				$str[Input::clean($key)] = Input::clean($val);
+				$str[$clean_key] = Input::clean($val);
 			}
 		}
 		elseif (is_string($str) AND $str !== '')

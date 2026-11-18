@@ -10,42 +10,68 @@
 class feed_Core {
 
 	/**
-	 * Parses a remote feed into an array.
-	 * 
+	 * Parses a feed into an array. By default $feed is an XML string. To
+	 * read a file or a URL, the caller must ask for it with $source, because
+	 * a user value as a file name or a URL gives file read or SSRF.
+	 *
 	 * ##### Examples
-	 * 		//Parse a remote RSS or ATOM feed
-	 * 		$feed_items = feed::parse('http://rss.slashdot.org/Slashdot/slashdot');
+	 * 		//Parse a remote RSS or ATOM feed (http and https only)
+	 * 		$feed_items = feed::parse('http://rss.slashdot.org/Slashdot/slashdot', 0, 'url');
 	 * 		
 	 * 		//Parse a local RSS feed from file
-	 * 		$feed_items = feed::parse('path/to/awesome_site.rss');
+	 * 		$feed_items = feed::parse('path/to/awesome_site.rss', 0, 'file');
 	 * 		
 	 * 		//Parse a string as an RSS feed
 	 * 		$feed_items = feed::parse($xml);	
 	 *
-	 * @param string $feed remote feed URL
+	 * @param string $feed XML string, file name or URL
 	 * @param integer $limit item limit to fetch
+	 * @param string $source 'string', 'file' or 'url'
 	 * @return array
 	 */
-	public static function parse($feed, $limit = 0)
+	public static function parse($feed, $limit = 0, $source = 'string')
 	{
 		// Check if SimpleXML is installed
-		if( ! function_exists('simplexml_load_file'))
+		if( ! function_exists('simplexml_load_string'))
 			throw new Kohana_User_Exception('Feed Error', 'SimpleXML must be installed!');
 
 		// Make limit an integer
 		$limit = (int) $limit;
 
+		if ($source === 'url')
+		{
+			$scheme = strtolower((string) parse_url($feed, PHP_URL_SCHEME));
+
+			if (($scheme !== 'http' AND $scheme !== 'https') OR ! filter_var($feed, FILTER_VALIDATE_URL))
+				return array();
+		}
+		elseif ($source === 'file')
+		{
+			if ( ! is_file($feed))
+				return array();
+		}
+		elseif ($source !== 'string')
+		{
+			throw new Kohana_Exception('Unknown feed source: %source%', array('%source%' => $source));
+		}
+
+		if ($source === 'string' AND strpos($feed, '<') === FALSE)
+		{
+			Kohana_Log::add('error', 'feed::parse() got no XML. To read a file or a URL, set the $source argument to \'file\' or \'url\'.');
+		}
+
 		// Disable error reporting while opening the feed
 		$ER = error_reporting(0);
 
-		// Allow loading by filename or raw XML string
-		$load = (is_file($feed) OR valid::url($feed)) ? 'simplexml_load_file' : 'simplexml_load_string';
+		// The http wrapper follows redirects only to http and https
+		$xml = ($source === 'string') ? $feed : file_get_contents($feed);
 
-		// Load the feed
-		$feed = $load($feed, 'SimpleXMLElement', LIBXML_NOCDATA);
+		// Load the feed without network access for DTDs and entities
+		$feed = ($xml === FALSE) ? FALSE : simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA | LIBXML_NONET);
 
-		// Restore error reporting
+		// Restore error reporting. The shutdown handler reports the last error, also a silenced one.
 		error_reporting($ER);
+		error_clear_last();
 
 		// Feed could not be loaded
 		if ($feed === FALSE)
