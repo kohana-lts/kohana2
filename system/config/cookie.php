@@ -46,7 +46,15 @@ $config['secure'] = FALSE;
 $config['httponly'] = FALSE;
 
 /**
- * Cookie salt for signed cookies.
+ * Add the browser User-Agent to the signature of signed cookies. A browser
+ * update then makes all its signed cookies invalid. The binding adds little
+ * security, because an attacker can copy the User-Agent too.
+ * @default FALSE
+ */
+$config['user_agent'] = FALSE;
+
+/**
+ * Cookie salt for signed cookies: the HMAC-SHA256 key of cookie::salt().
  * Make sure you change this to a unique value.
  *
  * [!!] Changing this value will invalidate all existing cookies!

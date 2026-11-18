@@ -15,6 +15,9 @@
  */
 class cookie_Core {
 
+	// Length of the signature from cookie::salt()
+	const SIGNATURE_LENGTH = 64;
+
 	/**
 	 * Defines a new cookie to be sent along with the http request.
 	 * For more information about creating cookies please see the
@@ -123,15 +126,13 @@ class cookie_Core {
 		// Get the cookie value
 		$cookie = $_COOKIE[$name];
 
-		// Find the position of the split between salt and contents
-		$split = strlen(cookie::salt($name, NULL));
-
-		if (isset($cookie[$split]) AND $cookie[$split] === '~')
+		if (is_string($cookie) AND isset($cookie[cookie::SIGNATURE_LENGTH]) AND $cookie[cookie::SIGNATURE_LENGTH] === '~')
 		{
-			 // Separate the salt and the value
-			list ($hash, $value) = explode('~', $cookie, 2);
+			// Separate the signature and the value
+			$hash = substr($cookie, 0, cookie::SIGNATURE_LENGTH);
+			$value = (string) substr($cookie, cookie::SIGNATURE_LENGTH + 1);
 
-			if (cookie::salt($name, $value) === $hash)
+			if (hash_equals(cookie::salt($name, $value), $hash))
 			{
 				if ($xss_clean === TRUE AND Kohana::config('core.global_xss_filtering') === FALSE)
 				{
@@ -141,7 +142,7 @@ class cookie_Core {
 				return $value;
 			}
 
-			 // The cookie signature is invalid, delete it
+			// The cookie signature is invalid, delete it
 			cookie::delete($name);
 		}
 
@@ -175,21 +176,31 @@ class cookie_Core {
 	}
 
 	/**
-	 * Generates a salt string for a cookie based on the name and value.
+	 * Returns the signature of a cookie: HMAC-SHA256 with cookie.salt as the
+	 * key. The data has length prefixes, so a different split of the same
+	 * name and value bytes gives a different signature.
+	 *
+	 * The User-Agent is part of the data only if cookie.user_agent is TRUE.
 	 *
 	 * @param	string   $name    Name of cookie
 	 * @param	string   $value   Value of cookie
-	 * @return	string   SHA1 hash
+	 * @return	string   64 hexadecimal characters
 	 */
 	public static function salt($name, $value)
 	{
-		// Determine the user agent
-		$agent = isset($_SERVER['HTTP_USER_AGENT']) ? strtolower($_SERVER['HTTP_USER_AGENT']) : 'unknown';
+		$agent = '';
 
-		// Cookie salt.
-		$salt = Kohana::config('cookie.salt');
+		if (Kohana::config('cookie.user_agent'))
+		{
+			$agent = isset($_SERVER['HTTP_USER_AGENT']) ? strtolower($_SERVER['HTTP_USER_AGENT']) : 'unknown';
+		}
 
-		return sha1($agent.$name.$value.$salt);
+		$name = (string) $name;
+		$value = (string) $value;
+
+		$data = strlen($name).':'.$name.'|'.strlen($agent).':'.$agent.'|'.$value;
+
+		return hash_hmac('sha256', $data, (string) Kohana::config('cookie.salt'));
 	}
 
 	/**
