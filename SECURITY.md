@@ -1,15 +1,25 @@
 # Security fixes
 
 This file lists the security problems in Kohana 2.4 (upstream `master`) that
-this fork fixes, and the problems that are still open. Each fix has a test.
+this fork fixes, and the problems that are still open. Each fix has a test,
+except K2-21 (`index.php`, checked by hand over HTTP).
 
 Labels:
 
+- **CVE**: a CVE identifier exists.
 - **Upstream ticket**: an upstream ticket or commit names the problem.
 - **Hardening**: found in a code review of this fork. No earlier public report.
 
-No CVE identifier exists for Kohana 2.4 code. The exploit-db entry EDB-24436
-is for Kohana 2.3.3 and does not apply to 2.4.
+Sources searched (2026-11-18): NVD, OSV, exploit-db and a web search for
+Kohana 2. The old upstream issue tracker (dev.kohanaframework.org) was not
+reachable through the Wayback Machine (HTTP 429), so tickets that only exist
+there are not covered.
+
+- CVE-2016-10510 is filed for Kohana 3, but Debian also fixed it in its
+  Kohana 2.3.4 package (DLA-1241-1). Kohana 2.4 has the same code (K2-27).
+- Exploit-db EDB-24436 ("Kohana 2.3.3 directory traversal") is about
+  `classes/Kohana/Filebrowser.php`. No such file exists in Kohana 2 or 3:
+  it belongs to a third-party application.
 
 To report a new problem, see [README.md](README.md#report-a-security-problem).
 
@@ -42,6 +52,7 @@ To report a new problem, see [README.md](README.md#report-a-security-problem).
 | K2-23 | No safe redirect for untrusted targets: new `url::redirect_local()` | Hardening | Low | `717f0159` |
 | K2-24 | `Input` stopped the request on a bad cookie name, unsafe download file names, `feed::parse()` read files and URLs | Hardening | Low | `6adfeb89` |
 | K2-25 | ORM mass assignment: `set(array)` and `load_values()` accepted the primary key and many-to-many relations | Hardening | Medium | `cfed7a95` |
+| K2-27 | XSS: `security::strip_image_tags()` bypass ([CVE-2016-10510](https://nvd.nist.gov/vuln/detail/CVE-2016-10510), Debian DLA-1241-1) | CVE | Medium | `df22b31d` |
 | K2-26 | The shutdown handler showed an error page for errors that code silenced with `@` | Hardening | Low | `f0e45abd` |
 
 ## PHP 8 problems with a security effect

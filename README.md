@@ -31,7 +31,7 @@ without changes.
 | Item | Value |
 |------|-------|
 | Base | kohana/kohana2 `master` (2.4 plus upstream fixes), ORM restored |
-| PHP | 8.1, 8.2, 8.3, 8.4 and 8.5 (tested in CI) |
+| PHP | 8.1 to 8.5. Tested locally on 8.5 (with MySQL 8.4) and in Docker on 8.1 to 8.4 (without the MySQL tests). The CI workflow covers all five. |
 | Security fixes | See [SECURITY.md](SECURITY.md) |
 | Behavior changes | See [UPGRADING.md](UPGRADING.md) |
 
