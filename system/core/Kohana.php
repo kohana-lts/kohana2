@@ -251,6 +251,9 @@ abstract class Kohana_Core {
 			}
 		}
 
+		// Clean the global input on every request, after hooks can change the config
+		Input::instance();
+
 		// Stop the environment setup routine
 		Benchmark::stop(SYSTEM_BENCHMARK.'_environment_setup');
 	}

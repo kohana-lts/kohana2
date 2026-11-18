@@ -2,9 +2,12 @@
 /**
  * PHPUnit bootstrap: runs the Kohana setup of index.php and
  * application/Bootstrap.php, but not the routing and the controller.
+ *
+ * Child processes (Kohana_TestCase::run_child()) also load this file. They can
+ * define IN_PRODUCTION first and set config keys in KOHANA_TEST_CONFIG (JSON).
  */
 
-define('IN_PRODUCTION', FALSE);
+defined('IN_PRODUCTION') OR define('IN_PRODUCTION', FALSE);
 define('EXT', '.php');
 define('DOCROOT', realpath(__DIR__.'/..').DIRECTORY_SEPARATOR);
 define('KOHANA', 'index.php');
@@ -29,6 +32,17 @@ require SYSPATH.'libraries/drivers/Config'.EXT;
 require SYSPATH.'libraries/drivers/Config/Array'.EXT;
 final class Kohana_Config extends Kohana_Config_Core {}
 
+if ($kohana_test_config = getenv('KOHANA_TEST_CONFIG'))
+{
+	// Config loads the core group, so Kohana::setup() does not parse the include paths
+	Kohana::include_paths(TRUE);
+
+	foreach (json_decode($kohana_test_config, TRUE) as $key => $value)
+	{
+		Kohana_Config::instance()->set($key, $value);
+	}
+}
+
 Kohana::setup();
 
 // PHPUnit handles errors and output
@@ -40,4 +54,7 @@ while (ob_get_level() > 0)
 	ob_end_flush();
 }
 
-require __DIR__.'/TestCase.php';
+if (defined('PHPUNIT_COMPOSER_INSTALL'))
+{
+	require __DIR__.'/TestCase.php';
+}

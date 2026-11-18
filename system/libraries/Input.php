@@ -2,13 +2,12 @@
 /**
  * Input library.
  *
- * Note: The Input library must be loaded if global xss filtering
- * is to be used.
+ * Kohana::setup() creates the instance, so the global input cleaning and
+ * global xss filtering run on every request.
  *
  * ##### Loading the Library
  *
- *     // The input library is no longer loaded automatically by the controller,
- *     // to use it, load it as a singleton instance:
+ *     // Get the singleton instance:
  *     $input = Input::instance();
  *
  * @package    Kohana
