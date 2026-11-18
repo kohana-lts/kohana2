@@ -475,21 +475,21 @@ class form_Core {
 
 			if (is_array($val))
 			{
-				$input .= '<optgroup label="'.$key.'">'."\n";
+				$input .= '<optgroup label="'.htmlspecialchars($key, ENT_QUOTES, Kohana::CHARSET, FALSE).'">'."\n";
 				foreach ($val as $inner_key => $inner_val)
 				{
 					// Inner key should always be a string
 					$inner_key = (string) $inner_key;
 
 					$sel = in_array($inner_key, $selected) ? ' selected="selected"' : '';
-					$input .= '<option value="'.$inner_key.'"'.$sel.'>'.htmlspecialchars($inner_val, ENT_QUOTES, Kohana::CHARSET, FALSE).'</option>'."\n";
+					$input .= '<option value="'.htmlspecialchars($inner_key, ENT_QUOTES, Kohana::CHARSET, FALSE).'"'.$sel.'>'.htmlspecialchars($inner_val, ENT_QUOTES, Kohana::CHARSET, FALSE).'</option>'."\n";
 				}
 				$input .= '</optgroup>'."\n";
 			}
 			else
 			{
 				$sel = in_array($key, $selected) ? ' selected="selected"' : '';
-				$input .= '<option value="'.$key.'"'.$sel.'>'.htmlspecialchars($val, ENT_QUOTES, Kohana::CHARSET, FALSE).'</option>'."\n";
+				$input .= '<option value="'.htmlspecialchars($key, ENT_QUOTES, Kohana::CHARSET, FALSE).'"'.$sel.'>'.htmlspecialchars($val, ENT_QUOTES, Kohana::CHARSET, FALSE).'</option>'."\n";
 			}
 		}
 		$input .= '</select>';
@@ -680,12 +680,16 @@ class form_Core {
 	 *     // Output:
 	 *     <button type="submit" >Login</button>
 	 *
-	 * @param   mixed  $data  Input name or an array of attribute => value pairs
-	 * @param   string $value Input value, when using a name
-	 * @param   string $extra A string to be attached to the end of the attributes
+	 * The value is escaped (existing entities stay as they are). To put
+	 * HTML in the button, set $escape to FALSE.
+	 *
+	 * @param   mixed   $data    Input name or an array of attribute => value pairs
+	 * @param   string  $value   Input value, when using a name
+	 * @param   string  $extra   A string to be attached to the end of the attributes
+	 * @param   boolean $escape  Escape the value
 	 * @return  string
 	 */
-	public static function button($data = '', $value = '', $extra = '')
+	public static function button($data = '', $value = '', $extra = '', $escape = TRUE)
 	{
 		if ( ! is_array($data))
 		{
@@ -701,6 +705,11 @@ class form_Core {
 		if (isset($data['value']) AND empty($value))
 		{
 			$value = arr::remove('value', $data);
+		}
+
+		if ($escape)
+		{
+			$value = htmlspecialchars((string) $value, ENT_QUOTES, Kohana::CHARSET, FALSE);
 		}
 
 		return '<button'.form::attributes($data, 'button').' '.$extra.'>'.$value.'</button>';
@@ -731,7 +740,7 @@ class form_Core {
 	 *     <input type="text" id="username" name="username" value=""  />
 	 * 
 	 * @param   mixed  $data  Label "for" value or an array of attribute => value pairs
-	 * @param   string $text  Label text or HTML
+	 * @param   string $text  Label text or HTML, not escaped (a NULL text uses the escaped "for" value)
 	 * @param   string $extra A string to be attached to the end of the attributes
 	 * @return  string
 	 */
@@ -754,7 +763,7 @@ class form_Core {
 		if ($text === NULL AND isset($data['for']))
 		{
 			// Make the text the human-readable input name
-			$text = ucwords(inflector::humanize($data['for']));
+			$text = htmlspecialchars(ucwords(inflector::humanize($data['for'])), ENT_QUOTES, Kohana::CHARSET, FALSE);
 		}
 
 		return '<label'.form::attributes($data).' '.$extra.'>'.$text.'</label>';

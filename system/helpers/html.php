@@ -49,7 +49,8 @@ class html_Core {
 	 * internal page links and makes them absolute using [url::site]. To
 	 * remove `index.php` from your links see [config::base_url].
 	 *
-	 * [!!] By default the anchor title will *not* be escaped
+	 * [!!] By default the anchor title will *not* be escaped. A NULL title
+	 * uses the escaped URL.
 	 *
 	 * ##### Example
 	 *
@@ -104,8 +105,8 @@ class html_Core {
 		'<a href="'.htmlspecialchars($site_url, ENT_QUOTES, Kohana::CHARSET, FALSE).'"'
 		// Attributes empty? Use an empty string
 		.(is_array($attributes) ? html::attributes($attributes) : '').'>'
-		// Title empty? Use the parsed URL
-		.($escape_title ? htmlspecialchars((($title === NULL) ? $site_url : $title), ENT_QUOTES, Kohana::CHARSET, FALSE) : (($title === NULL) ? $site_url : $title)).'</a>';
+		// Title empty? Use the parsed URL, which is data
+		.(($escape_title OR $title === NULL) ? htmlspecialchars((($title === NULL) ? $site_url : $title), ENT_QUOTES, Kohana::CHARSET, FALSE) : $title).'</a>';
 	}
 
 	/**
@@ -146,7 +147,8 @@ class html_Core {
 	 * Creates links to non-Kohana resources. This function works the same as
 	 * [html::anchor], except it uses [url::base] instead of [url::site]
 	 *
-	 * [!!] The anchor title will not be escaped
+	 * [!!] The anchor title will not be escaped. A NULL title uses the
+	 * escaped file name.
 	 *
 	 * ##### Example
 	 *
@@ -168,8 +170,8 @@ class html_Core {
 		'<a href="'.htmlspecialchars(url::base(FALSE, $protocol).$file, ENT_QUOTES, Kohana::CHARSET, FALSE).'"'
 		// Attributes empty? Use an empty string
 		.(is_array($attributes) ? html::attributes($attributes) : '').'>'
-		// Title empty? Use the filename part of the URI
-		.(($title === NULL) ? end(explode('/', $file)) : $title) .'</a>';
+		// Title empty? Use the escaped filename part of the URI
+		.(($title === NULL) ? htmlspecialchars(substr(strrchr('/'.$file, '/'), 1), ENT_QUOTES, Kohana::CHARSET, FALSE) : $title) .'</a>';
 	}
 
 	/**
@@ -192,7 +194,10 @@ class html_Core {
 		$safe = '';
 		foreach (str_split($email) as $letter)
 		{
-			switch (($letter === '@') ? rand(1, 2) : rand(1, 3))
+			// Only letters, digits and . _ + - can stay raw
+			$raw = ($letter !== '@' AND preg_match('/^[a-zA-Z0-9._+-]$/', $letter));
+
+			switch ($raw ? rand(1, 3) : rand(1, 2))
 			{
 				// HTML entity code
 				case 1: $safe .= '&#'.ord($letter).';'; break;
@@ -216,6 +221,8 @@ class html_Core {
 	 *     // Output (note the output has been truncated for display purposes):
 	 *     <a href="&#109;&#097;&#105;&#108;&#116;...">&#109;&#097;&#105;&#108;&#116;...</a>
 	 *
+	 * [!!] The anchor title will not be escaped
+	 *
 	 * @param   string  $email       Email address to send to
 	 * @param   string  $title       Link text
 	 * @param   array   $attributes  HTML anchor attributes
@@ -233,7 +240,7 @@ class html_Core {
 			list ($email, $params) = explode('?', $email, 2);
 
 			// Make the params into a query string, replacing spaces
-			$params = '?'.str_replace(' ', '%20', $params);
+			$params = '?'.htmlspecialchars(str_replace(' ', '%20', $params), ENT_QUOTES, Kohana::CHARSET, FALSE);
 		}
 		else
 		{
@@ -284,7 +291,10 @@ class html_Core {
 				// Complete URI for the URL
 				implode('/', $segments).'/'.$segment,
 				// Title for the current segment
-				ucwords(inflector::humanize($segment))
+				ucwords(inflector::humanize($segment)),
+				NULL,
+				NULL,
+				TRUE
 			);
 		}
 
@@ -326,7 +336,7 @@ class html_Core {
 		// Set the meta attribute value
 		$attr = in_array(strtolower($tag), Kohana::config('http.meta_equiv')) ? 'http-equiv' : 'name';
 
-		return '<meta '.$attr.'="'.$tag.'" content="'.$value.'" />';
+		return '<meta '.$attr.'="'.htmlspecialchars($tag, ENT_QUOTES, Kohana::CHARSET, FALSE).'" content="'.htmlspecialchars((string) $value, ENT_QUOTES, Kohana::CHARSET, FALSE).'" />';
 	}
 
 	/**
@@ -473,7 +483,7 @@ class html_Core {
 				$script = url::base((bool) $index).$script;
 			}
 
-			$compiled = '<script type="text/javascript" src="'.$script.'"></script>';
+			$compiled = '<script type="text/javascript" src="'.htmlspecialchars($script, ENT_QUOTES, Kohana::CHARSET, FALSE).'"></script>';
 		}
 
 		return $compiled."\n";
@@ -531,7 +541,8 @@ class html_Core {
 	/**
 	 * Compiles an array of HTML attributes into an attribute string.
 	 *
-	 * [!!] This function will automatically escape all attribute values using `htmlspecialchars()`
+	 * [!!] This function will automatically escape all attribute values using `htmlspecialchars()`.
+	 * It drops a key that contains a space, a quote, `<`, `>`, `/` or `=`.
 	 *
 	 * ##### Examples
 	 *
@@ -561,7 +572,11 @@ class html_Core {
 		$compiled = '';
 		foreach ($attrs as $key => $val)
 		{
-			$compiled .= ' '.$key.'="'.htmlspecialchars($val, ENT_QUOTES, Kohana::CHARSET).'"';
+			// An attribute name cannot be escaped, so drop names that break the tag
+			if ( ! preg_match('#^[^\x00-\x20\x7F"\'<>/=]+$#D', (string) $key))
+				continue;
+
+			$compiled .= ' '.$key.'="'.htmlspecialchars((string) $val, ENT_QUOTES, Kohana::CHARSET).'"';
 		}
 
 		return $compiled;
