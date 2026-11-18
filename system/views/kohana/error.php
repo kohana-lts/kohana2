@@ -1,6 +1,12 @@
 <?php defined('SYSPATH') OR die('No direct access allowed.');
 // Unique error identifier
 $error_id = uniqid('error');
+
+// Escapes text: the exception and the request carry user input
+$kohana_html = function ($value)
+{
+	return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, Kohana::CHARSET);
+};
 ?>
 <style type="text/css">
 
@@ -131,21 +137,21 @@ $error_id = uniqid('error');
 <div id="kohana_error">
 	<h1>
 		<span class="type">
-<?php echo $type?> [ <?php echo __($code)?> ]:
+<?php echo $kohana_html($type)?> [ <?php echo $kohana_html(__($code))?> ]:
 		</span>
 		<span class="message">
-<?php echo $message?>
+<?php echo $kohana_html($message)?>
 		</span>
 	</h1>
 	<div id="<?php echo $error_id ?>" class="content">
 		<p>
 			<span class="file">
-<?php echo Kohana_Exception::debug_path($file)?>[ <?php echo $line?> ]
+<?php echo $kohana_html(Kohana_Exception::debug_path($file))?>[ <?php echo $kohana_html($line)?> ]
 			</span>
 		</p>
 
 <?php if (Kohana_Exception::$source_output AND $source_code = Kohana_Exception::debug_source($file, $line)) : ?>
-		<pre class="source"><code><?php foreach ($source_code as $num => $row) : ?><span class="line <?php if ($num == $line) echo 'highlight' ?>"><span class="number"><?php echo $num ?></span><?php echo htmlspecialchars($row, ENT_NOQUOTES, Kohana::CHARSET) ?></span><?php endforeach ?></code></pre>
+		<pre class="source"><code><?php foreach ($source_code as $num => $row) : ?><span class="line <?php if ($num == $line) echo 'highlight' ?>"><span class="number"><?php echo $kohana_html($num) ?></span><?php echo htmlspecialchars($row, ENT_NOQUOTES | ENT_SUBSTITUTE, Kohana::CHARSET) ?></span><?php endforeach ?></code></pre>
 <?php endif ?>
 
 <?php if (Kohana_Exception::$trace_output) : ?>
@@ -156,16 +162,16 @@ $error_id = uniqid('error');
 					<span class="file">
 						<?php if ($step['file']): $source_id = $error_id.'source'.$i; ?>
 						<?php if (Kohana_Exception::$source_output AND $step['source']) : ?>
-						<a href="#<?php echo $source_id ?>" onclick="return koggle('<?php echo $source_id ?>')"><?php echo Kohana_Exception::debug_path($step['file'])?>[ <?php echo $step['line']?> ]</a>
+						<a href="#<?php echo $source_id ?>" onclick="return koggle('<?php echo $source_id ?>')"><?php echo $kohana_html(Kohana_Exception::debug_path($step['file']))?>[ <?php echo $kohana_html($step['line'])?> ]</a>
 						<?php else : ?>
-						<span class="file"><?php echo Kohana_Exception::debug_path($step['file'])?>[ <?php echo $step['line']?> ]</span>
+						<span class="file"><?php echo $kohana_html(Kohana_Exception::debug_path($step['file']))?>[ <?php echo $kohana_html($step['line'])?> ]</span>
 						<?php endif ?>
 						<?php else : ?>
 						{<?php echo __('PHP internal call')?>}
 						<?php endif?>
 					</span>
 					&raquo;
-					<?php echo $step['function']?>(<?php if ($step['args']): $args_id = $error_id.'args'.$i; ?><a href="#<?php echo $args_id ?>" onclick="return koggle('<?php echo $args_id ?>')"><?php echo __('arguments')?></a>
+					<?php echo $kohana_html($step['function'])?>(<?php if ($step['args']): $args_id = $error_id.'args'.$i; ?><a href="#<?php echo $args_id ?>" onclick="return koggle('<?php echo $args_id ?>')"><?php echo __('arguments')?></a>
 <?php endif?>)
 				</p>
 				<?php if (isset($args_id)): ?>
@@ -175,7 +181,7 @@ $error_id = uniqid('error');
 						<tr>
 							<td>
 								<code>
-<?php echo $name?>
+<?php echo $kohana_html($name)?>
 								</code>
 							</td>
 							<td>
@@ -187,7 +193,7 @@ $error_id = uniqid('error');
 				</div>
 				<?php endif?>
 				<?php if (Kohana_Exception::$source_output AND $step['source'] AND isset($source_id)): ?>
-				<pre id="<?php echo $source_id ?>" class="source collapsed"><code><?php foreach ($step['source'] as $num => $row) : ?><span class="line <?php if ($num == $step['line']) echo 'highlight' ?>"><span class="number"><?php echo $num ?></span><?php echo htmlspecialchars($row, ENT_NOQUOTES, Kohana::CHARSET) ?></span><?php endforeach ?></code></pre>
+				<pre id="<?php echo $source_id ?>" class="source collapsed"><code><?php foreach ($step['source'] as $num => $row) : ?><span class="line <?php if ($num == $step['line']) echo 'highlight' ?>"><span class="number"><?php echo $kohana_html($num) ?></span><?php echo htmlspecialchars($row, ENT_NOQUOTES | ENT_SUBSTITUTE, Kohana::CHARSET) ?></span><?php endforeach ?></code></pre>
 				<?php endif?>
 			</li>
 			<?php unset($args_id, $source_id); ?>
@@ -206,7 +212,7 @@ $error_id = uniqid('error');
 				<tr>
 					<td>
 						<code>
-<?php echo Kohana_Exception::debug_path($file)?>
+<?php echo $kohana_html(Kohana_Exception::debug_path($file))?>
 						</code>
 					</td>
 				</tr>
@@ -221,7 +227,7 @@ $error_id = uniqid('error');
 				<tr>
 					<td>
 						<code>
-<?php echo Kohana_Exception::debug_path($file)?>
+<?php echo $kohana_html(Kohana_Exception::debug_path($file))?>
 						</code>
 					</td>
 				</tr>
@@ -237,7 +243,7 @@ $error_id = uniqid('error');
 				<tr>
 					<td>
 						<code>
-<?php echo $key?>
+<?php echo $kohana_html($key)?>
 						</code>
 					</td>
 					<td>
