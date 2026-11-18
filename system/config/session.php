@@ -33,7 +33,9 @@ $config['name'] = 'kohanasession';
 $config['validate'] = array('user_agent');
 
 /**
- * Enable or disable session encryption.
+ * Enable or disable session encryption for the database and cache drivers.
+ * The cookie driver always encrypts and authenticates its data. A string
+ * names the Encrypt config group for the cookie driver.
  * Note: this has no effect on the native session driver.
  */
 $config['encryption'] = FALSE;

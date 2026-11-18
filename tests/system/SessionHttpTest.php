@@ -257,4 +257,103 @@ class SessionHttpTest extends Kohana_CgiTestCase {
 			}
 		}
 	}
+
+	/**
+	 * Returns a signed cookie value, as cookie::set() makes it.
+	 */
+	protected function signed($name, $value)
+	{
+		$this->set_config('cookie.salt', Kohana_CgiTestCase::SALT);
+		$this->set_config('cookie.user_agent', FALSE);
+
+		return cookie::salt($name, $value).'~'.$value;
+	}
+
+	/**
+	 * Returns a cookie driver payload, encrypted with the test key.
+	 */
+	protected function payload($expires, $id, $data)
+	{
+		$encrypt = new Encrypt(array('key' => Kohana_CgiTestCase::KEY));
+
+		return $encrypt->encode('k2s1|'.$expires.'|'.$id.'|'.$data);
+	}
+
+	public function test_cookie_driver_rejects_forged_data()
+	{
+		$this->use_driver('cookie');
+
+		$id = 'forgedsession1234567890';
+		$cookies = array(
+			'kohanasession' => $this->signed('kohanasession', $id),
+			'kohanasession_data' => $this->signed('kohanasession_data', base64_encode('user_id|i:1;role|s:5:"admin";object|O:8:"stdClass":0:{}')),
+		);
+
+		$response = $this->request(array(array('start'), array('get', 'user_id'), array('get', 'role'), array('get', 'object')), $cookies);
+
+		$this->assertClean($response);
+		$this->assertSame(array(FALSE, FALSE, FALSE), array_slice($response['results'], 1));
+		$this->assertNotSame($id, $response['session_id']);
+	}
+
+	public function test_cookie_driver_data_is_encrypted()
+	{
+		$this->use_driver('cookie');
+
+		$response = $this->request(array(array('start'), array('set', 'secret', 'plaintext-marker')));
+
+		$this->assertClean($response);
+
+		$value = $response['cookies']['kohanasession_data']['value'];
+		$this->assertStringNotContainsString('plaintext-marker', $value);
+		$this->assertStringNotContainsString(base64_encode('plaintext-marker'), $value);
+		$this->assertStringNotContainsString('plaintext-marker', (string) base64_decode(substr($value, 65), FALSE));
+	}
+
+	public function test_cookie_driver_payload_expires()
+	{
+		$this->use_driver('cookie');
+
+		$id = 'payloadsession1234567890';
+		$session = 'session_id|s:'.strlen($id).':"'.$id.'";total_hits|i:1;_kf_flash_|a:0:{}user_agent|s:14:"KohanaTest/1.0";user|s:5:"alice";';
+
+		// A valid payload opens the session
+		$valid = array(
+			'kohanasession' => $this->signed('kohanasession', $id),
+			'kohanasession_data' => $this->signed('kohanasession_data', $this->payload(time() + 60, $id, $session)),
+		);
+
+		$response = $this->request(array(array('start'), array('get', 'user')), $valid);
+
+		$this->assertClean($response);
+		$this->assertSame(array($id, 'alice'), $response['results']);
+
+		// An expired payload does not
+		$expired = array(
+			'kohanasession' => $this->signed('kohanasession', $id),
+			'kohanasession_data' => $this->signed('kohanasession_data', $this->payload(time() - 1, $id, $session)),
+		);
+
+		$response = $this->request(array(array('start'), array('get', 'user')), $expired);
+
+		$this->assertClean($response);
+		$this->assertFalse($response['results'][1]);
+		$this->assertNotSame($id, $response['session_id']);
+	}
+
+	public function test_cookie_driver_data_is_bound_to_the_session_id()
+	{
+		$this->use_driver('cookie');
+
+		$first = $this->request(array(array('start'), array('set', 'user', 'alice')));
+		$cookies = $this->next_cookies($first);
+
+		// The data cookie of the first session with another signed session ID
+		$cookies['kohanasession'] = $this->signed('kohanasession', 'othersession1234567890');
+
+		$response = $this->request(array(array('start'), array('get', 'user')), $cookies);
+
+		$this->assertClean($response);
+		$this->assertFalse($response['results'][1]);
+	}
 }
