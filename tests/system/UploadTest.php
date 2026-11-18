@@ -37,6 +37,17 @@ class UploadTest extends Kohana_TestCase {
 		$this->assertFalse(upload::type($file, array('jpg', 'png')));
 	}
 
+	public function test_type_as_validation_rule()
+	{
+		$post = Validation::factory(array('picture' => $this->upload('x.php.jpg', "<?php echo 1; ?>")))
+			->add_rules('picture', 'upload::type[jpg,png]');
+		$this->assertFalse($post->validate());
+
+		$post = Validation::factory(array('picture' => $this->upload('x.png', $this->png())))
+			->add_rules('picture', 'upload::type[jpg,png]');
+		$this->assertTrue($post->validate());
+	}
+
 	public function test_type_accepts_real_image()
 	{
 		$this->assertTrue(upload::type($this->upload('Photo.PNG', $this->png()), array('jpg', 'png')));
