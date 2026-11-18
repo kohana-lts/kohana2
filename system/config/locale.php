@@ -18,9 +18,8 @@
 $config['language'] = array('en_US', 'English_United States');
 
 /**
- * Locale timezone. Defaults to the timezone you have set in your php config
- * 
- * [!!] This cannot be left empty, a valid timezone is required!
+ * Locale timezone. Defaults to the timezone you have set in your php config.
+ * When it is empty, PHP uses its default timezone (UTC).
  * @see http://php.net/timezones
  */
 $config['timezone'] = ini_get('date.timezone');

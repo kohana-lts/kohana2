@@ -198,7 +198,10 @@ abstract class Kohana_Core {
 		I18n::set_locale(Kohana::$locale);
 
 		// Set and validate the timezone
-		date_default_timezone_set(Kohana::config('locale.timezone'));
+		if ($timezone = Kohana::config('locale.timezone'))
+		{
+			date_default_timezone_set($timezone);
+		}
 
 		// register_globals is enabled
 		if (ini_get('register_globals'))
@@ -657,9 +660,10 @@ abstract class Kohana_Core {
 				),
 				array
 				(
-					KOHANA::VERSION,
-					KOHANA::CODENAME,
-					$benchmark['time'],
+					Kohana::VERSION,
+					Kohana::CODENAME,
+					// FALSE when the benchmark did not start, for example in a test
+					is_array($benchmark) ? $benchmark['time'] : 0,
 					number_format($memory, 2).'MB',
 					count(get_included_files()),
 				),
