@@ -49,6 +49,9 @@ class url_Core {
 	 * If protocol (and core.site_protocol) and core.site_domain are both empty,
 	 * then this method will guess the protocol and the fully qualified domain.
 	 *
+	 * With a protocol and a core.site_domain without a host, the host comes
+	 * from [url::host], so it must be in core.allowed_hosts.
+	 *
 	 * ##### Example
 	 *
 	 *     // This example assumes Kohana's default configuration
@@ -94,8 +97,8 @@ class url_Core {
 		{
 			if ($site_domain === '' OR $site_domain[0] === '/')
 			{
-				// Guess the server name if the domain starts with slash
-				$base_url = $protocol.'://'.$_SERVER['HTTP_HOST'].$site_domain;
+				// Take the host from the request, if core.allowed_hosts allows it
+				$base_url = $protocol.'://'.url::host().$site_domain;
 			}
 			else
 			{
@@ -112,6 +115,35 @@ class url_Core {
 
 		// Force a slash on the end of the URL
 		return rtrim($base_url, '/').'/';
+	}
+
+	/**
+	 * Returns the host for full URLs when core.site_domain has no host. The
+	 * Host header is used only if it is in core.allowed_hosts, because a
+	 * client can send any Host header. For another host, the first entry of
+	 * the list is used. The entry '*' allows any host.
+	 *
+	 * @throws  Kohana_Exception  if no allowed host is configured
+	 * @return  string  host, with the port if the request has one
+	 */
+	public static function host()
+	{
+		$allowed = array_map('strtolower', array_map('strval', (array) Kohana::config('core.allowed_hosts')));
+
+		$host = isset($_SERVER['HTTP_HOST']) ? strtolower((string) $_SERVER['HTTP_HOST']) : '';
+
+		// Host name or IP literal, with an optional port
+		if (preg_match('/^(?:[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?|\[[0-9a-f:.]+\])(?::[0-9]{1,5})?$/D', $host)
+			AND (in_array($host, $allowed, TRUE) OR in_array('*', $allowed, TRUE)))
+			return $host;
+
+		foreach ($allowed as $entry)
+		{
+			if ($entry !== '*' AND $entry !== '')
+				return $entry;
+		}
+
+		throw new Kohana_Exception('The request host is not in core.allowed_hosts. Add the host names of the site to core.allowed_hosts, or set core.site_domain with a host');
 	}
 
 	/**
@@ -290,11 +322,12 @@ class url_Core {
 	 *
 	 * ##### Example
 	 *
-	 *     // Assuming this base url: http://localhost/kohana/
+	 *     // Assuming this base url: /kohana/
 	 *     url::redirect('controller/method');
 	 *
-	 *     // Will redirect you to this resultant url:
-	 *     http://localhost/kohana/controller/method
+	 *     // Sends this Location header (a relative URL, so the Host header
+	 *     // of the request has no effect):
+	 *     /kohana/index.php/controller/method
 	 *
 	 * @param  mixed	string site URI or URL to redirect to, or array of strings if method is 300
 	 * @param  varchar	HTTP status code
@@ -346,8 +379,8 @@ class url_Core {
 
 		if (strpos($uri, '://') === FALSE)
 		{
-			// HTTP headers expect absolute URLs
-			$uri = url::site($uri, request::protocol());
+			// A relative Location (RFC 7231) does not depend on the Host header
+			$uri = url::site($uri);
 		}
 
 		if ($status === 'refresh')

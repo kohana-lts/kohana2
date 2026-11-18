@@ -18,6 +18,18 @@
 $config['site_domain'] = '/kohana/';
 
 /**
+ * Host names for full URLs when site_domain has no host, for example
+ * url::site('reset', 'https'). url::base() takes the Host header only if it
+ * is in this list, else it uses the first entry. Add the port if the site
+ * uses a port that is not the default. With an empty list, url::base()
+ * throws an exception for such URLs. '*' allows any Host header: use it
+ * only if the web server accepts only your host names.
+ *
+ * @default array()
+ */
+$config['allowed_hosts'] = array();
+
+/**
  * Force a default protocol to be used by the site. If no site_protocol is
  * specified, then the current protocol is used, or when possible, only an
  * absolute path (with no protocol/domain) is used.
