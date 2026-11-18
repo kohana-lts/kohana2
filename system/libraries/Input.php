@@ -340,6 +340,10 @@ class Input_Core {
 	 * It's not something that should be used for general runtime processing
 	 * since it requires a fair amount of processing overhead.
 	 *
+	 * [!!] The default tool is a blacklist filter and cannot be complete.
+	 * For HTML from users, use the 'htmlpurifier' tool (HTML Purifier is a
+	 * whitelist filter) or escape the output with html::chars().
+	 *
 	 * ##### Example
 	 *
 	 *    // Clean the input variable with the default tool
@@ -427,11 +431,14 @@ class Input_Core {
 		//   * Split up alternation alternatives
 		//   * Made some quantifiers possessive
 
-		// Fix &entity\n;
-		$data = str_replace(array('&amp;','&lt;','&gt;'), array('&amp;amp;','&amp;lt;','&amp;gt;'), $data);
+		// Fix &entity\n; (the HTML5 table also has &LT; &GT; &AMP;)
+		$data = preg_replace('/&(amp|lt|gt);/i', '&amp;$1;', $data);
 		$data = preg_replace('/(&#*\w+)[\x00-\x20]+;/u', '$1;', $data);
 		$data = preg_replace('/(&#x*[0-9A-F]+);*/iu', '$1;', $data);
-		$data = html_entity_decode($data, ENT_COMPAT, 'UTF-8');
+		$data = html_entity_decode($data, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+		// Remove URL and style attributes that use a script or data scheme
+		$data = preg_replace_callback('#(?<=[\x00-\x20"\'/])(?:href|src|srcset|lowsrc|dynsrc|action|formaction|background|poster|style|xlink:href)[\x00-\x20]*=[\x00-\x20]*(?:"[^"]*+"?|\'[^\']*+\'?|[^\x00-\x20>]*+)#iu', array($this, 'xss_filter_attribute'), $data);
 
 		// Remove any attribute starting with "on" or xmlns
 		$data = preg_replace('#(?:on[a-z]+|xmlns)\s*=\s*[\'"\x00-\x20]?[^\'>"]*[\'"\x00-\x20]?\s?#iu', '', $data);
@@ -458,6 +465,43 @@ class Input_Core {
 		while ($old_data !== $data);
 
 		return $data;
+	}
+
+	/**
+	 * Callback for xss_filter_default(): returns an empty string for an
+	 * attribute whose value uses the javascript:, vbscript: or data: scheme.
+	 * The value is decoded until it is stable, because the filter output
+	 * gets one more decode in the browser.
+	 *
+	 * @param   array   $matches  the attribute in $matches[0]
+	 * @return  string
+	 */
+	protected function xss_filter_attribute(array $matches)
+	{
+		$equals = strpos($matches[0], '=');
+		$name   = strtolower(rtrim(substr($matches[0], 0, $equals)));
+		$value  = substr($matches[0], $equals + 1);
+
+		for ($i = 0; $i < 5; $i++)
+		{
+			$decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+			if ($decoded === $value)
+				break;
+
+			$value = $decoded;
+		}
+
+		// Browsers ignore control characters and spaces in a scheme
+		$value = strtolower(preg_replace('/[\x00-\x20`\'"]+/', '', $value));
+
+		// A style or a srcset can hold a URL at any position
+		$anchor = ($name === 'style' OR $name === 'srcset') ? '' : '^';
+
+		if (preg_match('/'.$anchor.'(?:javascript|vbscript|data):/', $value))
+			return '';
+
+		return $matches[0];
 	}
 
 	/**
