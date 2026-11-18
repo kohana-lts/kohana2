@@ -159,6 +159,8 @@ class text_Core {
 	 * For values that do not match any of the above, the characters passed
 	 * in will be used.
 	 *
+	 * The characters come from random_int(), a CSPRNG, so the result can be a token or password.
+	 *
 	 * ##### Example
 	 *
 	 *     echo text::random('alpha', 20);
@@ -215,7 +217,7 @@ class text_Core {
 		for ($i = 0; $i < $length; $i++)
 		{
 			// Select a random character from the pool and add it to the string
-			$str .= $pool[mt_rand(0, $max)];
+			$str .= $pool[random_int(0, $max)];
 		}
 
 		// Make sure alnum strings contain at least one letter and one digit
@@ -224,12 +226,12 @@ class text_Core {
 			if (ctype_alpha($str))
 			{
 				// Add a random digit
-				$str[mt_rand(0, $length - 1)] = chr(mt_rand(48, 57));
+				$str[random_int(0, $length - 1)] = chr(random_int(48, 57));
 			}
 			elseif (ctype_digit($str))
 			{
 				// Add a random letter
-				$str[mt_rand(0, $length - 1)] = chr(mt_rand(65, 90));
+				$str[random_int(0, $length - 1)] = chr(random_int(65, 90));
 			}
 		}
 
