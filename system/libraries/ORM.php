@@ -56,6 +56,13 @@ class ORM_Core {
 	// Array of foreign key name overloads
 	protected $foreign_key = array();
 
+	/**
+	 * Keys that set(array) refuses and load_values() skips, against mass
+	 * assignment. NULL means the primary key and the has_and_belongs_to_many
+	 * relations. Set array() to allow all keys.
+	 */
+	protected $protected_columns = NULL;
+
 	// Model configuration
 	protected $table_names_plural = TRUE;
 	protected $reload_on_wakeup   = TRUE;
@@ -464,19 +471,38 @@ class ORM_Core {
 	}
 
 	/**
-	 * Chainable set method
+	 * Chainable set method. With an array, give the list of keys to set
+	 * when the array comes from input: other keys are ignored.
+	 *
+	 *     $user->set($_POST, array('name', 'email'));
 	 *
 	 * @param   string  name of field or array of key => val
-	 * @param   mixed   value
+	 * @param   mixed   value, or the list of keys to set when $name is an array
 	 * @return  ORM
+	 * @throws  Kohana_Exception  for a protected key, see ORM::$protected_columns
 	 */
 	public function set($name, $value = NULL)
 	{
 		if (is_array($name))
 		{
-			foreach ($name as $key => $value)
+			if (is_array($value))
 			{
-				$this->__set($key, $value);
+				// Listed keys are allowed, also protected ones
+				$name = array_intersect_key($name, array_flip($value));
+				$protected = array();
+			}
+			else
+			{
+				$protected = $this->protected_columns();
+			}
+
+			foreach ($name as $key => $val)
+			{
+				if (in_array((string) $key, $protected, TRUE))
+					throw new Kohana_Exception('The :property: property of the :class: class is protected from mass assignment',
+						array(':property:' => $key, ':class:' => get_class($this)));
+
+				$this->__set($key, $val);
 			}
 		}
 		else
@@ -485,6 +511,19 @@ class ORM_Core {
 		}
 
 		return $this;
+	}
+
+	/**
+	 * Returns the keys that set(array) and load_values() protect.
+	 *
+	 * @return  array
+	 */
+	public function protected_columns()
+	{
+		if ($this->protected_columns === NULL)
+			return array_merge(array($this->primary_key), $this->has_and_belongs_to_many);
+
+		return $this->protected_columns;
 	}
 
 	/**
@@ -616,7 +655,7 @@ class ORM_Core {
 		}
 
 		// This trick allows for models to use different table prefixes (sharing the same database)
-		$join_table = array($this->db->quote_table($target_path) => $target->db->quote_table($target->table_name));
+		$join_table = $target->db->quote_table($target->table_name).' AS '.$this->db->quote_table($target_path);
 
 		// Join the related object into the result
 		// Use Database_Expression to disable prefixing
@@ -746,8 +785,8 @@ class ORM_Core {
 			ORM_Validation_Exception::handle_validation($this->table_name, $array);
 		}
 
-		// Fields may have been modified by filters
-		ORM::load_values($array->getArrayCopy());
+		// Fields may have been modified by filters. The array has only fields with rules.
+		$this->load_values($array->getArrayCopy(), FALSE);
 
 		// Return validation status
 		return $this;
@@ -1296,19 +1335,22 @@ class ORM_Core {
 	 * Loads an array of values into into the current object.
 	 *
 	 * @chainable
-	 * @param   array  values to load
+	 * @param   array    values to load
+	 * @param   boolean  skip the keys in ORM::protected_columns()
 	 * @return  ORM
 	 */
-	public function load_values(array $values)
+	public function load_values(array $values, $protect = TRUE)
 	{
 		// Related objects
 		$related = array();
+
+		$protected = $protect ? $this->protected_columns() : array();
 
 		foreach ($values as $column => $value)
 		{
 			if (strpos($column, ':') === FALSE)
 			{
-				if ( ! isset($this->changed[$column]))
+				if ( ! isset($this->changed[$column]) AND ! in_array((string) $column, $protected, TRUE))
 				{
 					if (isset($this->table_columns[$column]))
 					{
@@ -1330,7 +1372,7 @@ class ORM_Core {
 			foreach ($related as $object => $values)
 			{
 				// Load the related objects with the values in the result
-				$this->related[$object] = $this->related_object($object)->load_values($values);
+				$this->related[$object] = $this->related_object($object)->load_values($values, $protect);
 			}
 		}
 
