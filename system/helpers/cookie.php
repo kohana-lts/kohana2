@@ -18,6 +18,9 @@ class cookie_Core {
 	// Length of the signature from cookie::salt()
 	const SIGNATURE_LENGTH = 64;
 
+	// The salt that Kohana 2.4 shipped. It is public, so cookie::check_salt() refuses it.
+	const PUBLIC_SALT = 'K0hAN4 15 Th3 B357';
+
 	/**
 	 * Defines a new cookie to be sent along with the http request.
 	 * For more information about creating cookies please see the
@@ -48,21 +51,37 @@ class cookie_Core {
 	 * @param   string   $path       URL path to allow
 	 * @param   string   $domain     URL domain to allow
 	 * @param   boolean  $secure     HTTPS only
-	 * @param   boolean  $httponly   HTTP only (requires PHP 5.2 or higher)
+	 * @param   boolean  $httponly   HTTP only
+	 * @param   string   $samesite   SameSite attribute: 'Lax', 'Strict', 'None' or '' for none
 	 * @return  boolean
+	 * @throws  Kohana_Exception  if cookie.salt is not set
 	 */
-	public static function set($name, $value = NULL, $expire = NULL, $path = NULL, $domain = NULL, $secure = NULL, $httponly = NULL)
+	public static function set($name, $value = NULL, $expire = NULL, $path = NULL, $domain = NULL, $secure = NULL, $httponly = NULL, $samesite = NULL)
 	{
+		cookie::check_salt();
+
 		if (headers_sent())
 			return FALSE;
 
-		// If the name param is an array, we import it
-		is_array($name) and extract($name, EXTR_OVERWRITE);
+		if (is_array($name))
+		{
+			// Import the options of the array
+			$options = $name;
+			$name = NULL;
+
+			foreach (array('name', 'value', 'expire', 'path', 'domain', 'secure', 'httponly', 'samesite') as $item)
+			{
+				if (array_key_exists($item, $options))
+				{
+					$$item = $options[$item];
+				}
+			}
+		}
 
 		// Fetch default options
 		$config = Kohana::config('cookie');
 
-		foreach (array('value', 'expire', 'domain', 'path', 'secure', 'httponly') as $item)
+		foreach (array('value', 'expire', 'domain', 'path', 'secure', 'httponly', 'samesite') as $item)
 		{
 			if ($$item === NULL AND isset($config[$item]))
 			{
@@ -70,7 +89,7 @@ class cookie_Core {
 			}
 		}
 
-		if ($expire !== 0)
+		if ($expire != 0)
 		{
 			 // The expiration is expected to be a UNIX timestamp
 			$expire += time();
@@ -78,7 +97,7 @@ class cookie_Core {
 
 		$value = cookie::salt($name, $value).'~'.$value;
 
-		return setcookie($name, $value, $expire, $path, $domain, $secure, $httponly);
+		return cookie::send($name, $value, $expire, $path, $domain, $secure, $httponly, $samesite);
 	}
 
 	/**
@@ -171,8 +190,60 @@ class cookie_Core {
 		// Delete the cookie from globals
 		unset($_COOKIE[$name]);
 
-		// Sets the cookie value to an empty string, and the expiration to 24 hours ago
-		return cookie::set($name, '', -86400, $path, $domain, FALSE, FALSE);
+		if (headers_sent())
+			return FALSE;
+
+		$config = Kohana::config('cookie');
+
+		($path === NULL) and $path = $config['path'];
+		($domain === NULL) and $domain = $config['domain'];
+
+		// An empty value needs no signature, so this works without a salt
+		return cookie::send($name, '', time() - 86400, $path, $domain, ! empty($config['secure']), ! empty($config['httponly']), isset($config['samesite']) ? $config['samesite'] : '');
+	}
+
+	/**
+	 * Sends a Set-Cookie header.
+	 *
+	 * @throws  Kohana_Exception  for an unknown SameSite value
+	 * @return  boolean
+	 */
+	protected static function send($name, $value, $expire, $path, $domain, $secure, $httponly, $samesite)
+	{
+		$options = array(
+			'expires'  => (int) $expire,
+			'path'     => (string) $path,
+			'domain'   => (string) $domain,
+			'secure'   => (bool) $secure,
+			'httponly' => (bool) $httponly,
+		);
+
+		if ((string) $samesite !== '')
+		{
+			$samesite = ucfirst(strtolower((string) $samesite));
+
+			if ( ! in_array($samesite, array('Lax', 'Strict', 'None'), TRUE))
+				throw new Kohana_Exception('The cookie SameSite value must be Lax, Strict, None or empty');
+
+			$options['samesite'] = $samesite;
+		}
+
+		return setcookie($name, (string) $value, $options);
+	}
+
+	/**
+	 * Throws an exception if cookie.salt is empty or the public value that
+	 * Kohana 2.4 shipped. Anybody can sign cookies with a known salt.
+	 *
+	 * @throws  Kohana_Exception
+	 * @return  void
+	 */
+	public static function check_salt()
+	{
+		$salt = (string) Kohana::config('cookie.salt');
+
+		if ($salt === '' OR $salt === cookie::PUBLIC_SALT)
+			throw new Kohana_Exception('Set cookie.salt in application/config/cookie.php to a long random secret before you use signed cookies or sessions');
 	}
 
 	/**
@@ -188,6 +259,8 @@ class cookie_Core {
 	 */
 	public static function salt($name, $value)
 	{
+		cookie::check_salt();
+
 		$agent = '';
 
 		if (Kohana::config('cookie.user_agent'))

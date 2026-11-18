@@ -12,8 +12,8 @@
  *
  *     //----------Storage
  *
- *     // By default, session data is stored in a cookie. You can change 
- *     // this in the file "config/session.php".
+ *     // By default, session data is stored with the native PHP session
+ *     // handler. You can change this in the file "config/session.php".
  *
  *     // Note: the cookie driver limits session data to 4KB, while the database 
  *     // driver limits session data to 64KB.
@@ -261,14 +261,21 @@ class Session_Core {
 		session_name(Session::$config['name']);
 
 		// Set the session cookie parameters
-		session_set_cookie_params
+		$params = array
 		(
-			Session::$config['expiration'],
-			Kohana::config('cookie.path'),
-			Kohana::config('cookie.domain'),
-			Kohana::config('cookie.secure'),
-			Kohana::config('cookie.httponly')
+			'lifetime' => (int) Session::$config['expiration'],
+			'path'     => (string) Kohana::config('cookie.path'),
+			'domain'   => (string) Kohana::config('cookie.domain'),
+			'secure'   => (bool) Kohana::config('cookie.secure'),
+			'httponly' => (bool) Kohana::config('cookie.httponly'),
 		);
+
+		if ((string) Kohana::config('cookie.samesite') !== '')
+		{
+			$params['samesite'] = (string) Kohana::config('cookie.samesite');
+		}
+
+		session_set_cookie_params($params);
 
 		$cookie = cookie::get(Session::$config['name']);
 		

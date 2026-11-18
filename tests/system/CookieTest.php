@@ -101,4 +101,50 @@ class CookieTest extends Kohana_TestCase {
 		$_SERVER['HTTP_USER_AGENT'] = 'Browser/1';
 		$this->assertNotSame($bound, cookie::salt('name', 'value'));
 	}
+
+	public function provider_refused_salts()
+	{
+		return array(
+			array(''),
+			array(NULL),
+			array('K0hAN4 15 Th3 B357'),
+		);
+	}
+
+	/**
+	 * @dataProvider provider_refused_salts
+	 */
+	public function test_salt_must_be_set($salt)
+	{
+		$this->set_config('cookie.salt', $salt);
+
+		try
+		{
+			cookie::salt('name', 'value');
+			$this->fail('cookie::salt() accepted the salt');
+		}
+		catch (Kohana_Exception $e)
+		{
+			$this->assertStringContainsString('cookie.salt', $e->getMessage());
+		}
+
+		$this->expectException('Kohana_Exception');
+		cookie::set('name', 'value');
+	}
+
+	public function test_shipped_defaults()
+	{
+		include SYSPATH.'config/cookie.php';
+
+		$this->assertSame('', $config['salt']);
+		$this->assertTrue($config['httponly']);
+		$this->assertSame('Lax', $config['samesite']);
+		$this->assertFalse($config['secure']);
+		$this->assertFalse($config['user_agent']);
+
+		$config = NULL;
+		include SYSPATH.'config/session.php';
+
+		$this->assertSame('native', $config['driver']);
+	}
 }

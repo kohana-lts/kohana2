@@ -9,10 +9,12 @@
  */
 
 /**
- *
- * Session driver name.
+ * Session driver name: native, database, cache or cookie.
+ * The native driver keeps the data on the server with the PHP session
+ * handler. The cookie driver keeps the encrypted data in the browser.
+ * @default 'native'
  */
-$config['driver'] = 'cookie';
+$config['driver'] = 'native';
 
 /**
  * Session storage parameter, used by drivers.
@@ -47,6 +49,12 @@ $config['expiration'] = 7200;
  * A value of 0 will disable automatic session id regeneration.
  * NOTE: Enabling automatic session regeneration can cause a race condition see the
  * docs for details: http://docs.kohanaphp.com/libraries/session#regenerate
+ *
+ * The default is 0, because a regeneration deletes the old session, and
+ * parallel requests (AJAX) with the old ID then lose the session.
+ * [!!] Call Session::instance()->regenerate() after each login and each
+ * change of privileges, to prevent session fixation.
+ * @default 0
  */
 $config['regenerate'] = 0;
 

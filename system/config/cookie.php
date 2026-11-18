@@ -32,18 +32,27 @@ $config['path'] = '/';
 $config['expire'] = 0;
 
 /**
- * Enable this option to only allow the cookie to be read when using the a
- * secure protocol.
+ * Send the cookie only over HTTPS. The default is FALSE, so that a new
+ * installation also works over HTTP.
+ *
+ * [!!] Set this to TRUE on sites that use HTTPS. Otherwise the browser also
+ * sends the session cookie over plain HTTP.
  * @default FALSE
  */
 $config['secure'] = FALSE;
 
 /**
- * Enable this option to make the cookie accessible only through the
- * HTTP protocol (e.g. no javascript access). This is not supported by all browsers.
- * @default FALSE
+ * Make the cookie accessible only through HTTP, not through JavaScript.
+ * @default TRUE
  */
-$config['httponly'] = FALSE;
+$config['httponly'] = TRUE;
+
+/**
+ * SameSite attribute of the cookie: 'Lax', 'Strict', 'None' or '' to not send
+ * the attribute. Browsers ignore 'None' if secure is FALSE.
+ * @default 'Lax'
+ */
+$config['samesite'] = 'Lax';
 
 /**
  * Add the browser User-Agent to the signature of signed cookies. A browser
@@ -55,9 +64,11 @@ $config['user_agent'] = FALSE;
 
 /**
  * Cookie salt for signed cookies: the HMAC-SHA256 key of cookie::salt().
- * Make sure you change this to a unique value.
+ * Set a long random secret in application/config/cookie.php, for example
+ * base64_encode(random_bytes(32)). The cookie helper and the Session library
+ * throw an exception while the salt is empty or 'K0hAN4 15 Th3 B357'.
  *
  * [!!] Changing this value will invalidate all existing cookies!
- * @default 'K0hAN4 15 Th3 B357'
+ * @default ''
  */
-$config['salt'] = 'K0hAN4 15 Th3 B357';
+$config['salt'] = '';
