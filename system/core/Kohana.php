@@ -134,10 +134,11 @@ abstract class Kohana_Core {
 
 			if(Kohana::$internal_cache_encrypt===TRUE)
 			{
-				Kohana::$internal_cache_key = Kohana::config('core.internal_cache_key');
+				Kohana::$internal_cache_key = (string) Kohana::config('core.internal_cache_key');
 
-				// Be sure the key is of acceptable length for the mcrypt algorithm used
-				Kohana::$internal_cache_key = substr(Kohana::$internal_cache_key, 0, 24);
+				// The shipped example key is public, so it protects nothing
+				if (Kohana::$internal_cache_key === '' OR Kohana::$internal_cache_key === 'foobar-changeme')
+					throw new Kohana_Exception('Set core.internal_cache_key to a long random secret, or disable core.internal_cache_encrypt');
 			}
 
 			// Set the directory to be used for the internal cache
@@ -440,28 +441,24 @@ abstract class Kohana_Core {
 				// Check the file modification time
 				if ((time() - filemtime($path)) < $lifetime)
 				{
+					$data = file_get_contents($path);
+
 					// Cache is valid! Now, do we need to decrypt it?
-					if(Kohana::$internal_cache_encrypt === TRUE)
+					if (Kohana::$internal_cache_encrypt === TRUE)
 					{
-						$data    = file_get_contents($path);
-						$iv_size = mcrypt_get_iv_size(MCRYPT_RIJNDAEL_256, MCRYPT_MODE_ECB);
-						$iv      = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-
-						$decrypted_text = mcrypt_decrypt(MCRYPT_RIJNDAEL_256, Kohana::$internal_cache_key, $data, MCRYPT_MODE_ECB, $iv);
-
-						$cache = unserialize($decrypted_text);
-
-						// If the key changed, delete the cache file
-						if( ! $cache)
-						{
-							unlink($path);
-						}
-
-						// If cache is false (as above) return NULL, otherwise, return the cache
-						return ($cache ? $cache : NULL);
+						$data = Kohana::cache_decrypt($data);
 					}
-					else
-						return unserialize(file_get_contents($path));
+
+					// The cache holds only arrays and scalars
+					$cache = ($data === FALSE) ? FALSE : @unserialize($data, array('allowed_classes' => FALSE));
+
+					// If the key changed or the file is damaged, delete the cache file
+					if ( ! $cache)
+					{
+						unlink($path);
+					}
+
+					return ($cache ? $cache : NULL);
 				}
 				else
 				{
@@ -501,14 +498,8 @@ abstract class Kohana_Core {
 			// Using encryption? Encrypt the data when we write it
 			if(Kohana::$internal_cache_encrypt === TRUE)
 			{
-				// Encrypt and write data to cache file
-				$iv_size = mcrypt_get_iv_size(MCRYPT_RIJNDAEL_256, MCRYPT_MODE_ECB);
-				$iv      = mcrypt_create_iv($iv_size, MCRYPT_RAND);
-
-				// Serialize and encrypt!
-				$encrypted_text = mcrypt_encrypt(MCRYPT_RIJNDAEL_256, Kohana::$internal_cache_key, serialize($data), MCRYPT_MODE_ECB, $iv);
-
-				return (bool) file_put_contents($path, $encrypted_text);
+				// Serialize, encrypt and write data to cache file
+				return (bool) file_put_contents($path, Kohana::cache_encrypt(serialize($data)));
 			}
 			else
 			{
@@ -516,6 +507,46 @@ abstract class Kohana_Core {
 				return (bool) file_put_contents($path, serialize($data));
 			}
 		}
+	}
+
+	/**
+	 * Encrypts and signs internal cache data: AES-256-CBC, then HMAC-SHA256.
+	 * The autoloader is not ready when the cache loads, so this does not use
+	 * the Encrypt library.
+	 *
+	 * @param   string  $data
+	 * @return  string
+	 */
+	public static function cache_encrypt($data)
+	{
+		$iv  = random_bytes(16);
+		$key = hash_hkdf('sha256', Kohana::$internal_cache_key, 32, 'kohana-internal-cache-aes');
+
+		$encrypted = $iv.openssl_encrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+		return hash_hmac('sha256', $encrypted, hash_hkdf('sha256', Kohana::$internal_cache_key, 32, 'kohana-internal-cache-mac'), TRUE).$encrypted;
+	}
+
+	/**
+	 * Verifies and decrypts data from Kohana::cache_encrypt().
+	 *
+	 * @param   string  $data
+	 * @return  string|FALSE  FALSE if the data or the key changed
+	 */
+	public static function cache_decrypt($data)
+	{
+		if (strlen($data) < 32 + 16 + 16)
+			return FALSE;
+
+		$mac = substr($data, 0, 32);
+		$encrypted = substr($data, 32);
+
+		if ( ! hash_equals(hash_hmac('sha256', $encrypted, hash_hkdf('sha256', Kohana::$internal_cache_key, 32, 'kohana-internal-cache-mac'), TRUE), $mac))
+			return FALSE;
+
+		$key = hash_hkdf('sha256', Kohana::$internal_cache_key, 32, 'kohana-internal-cache-aes');
+
+		return openssl_decrypt(substr($encrypted, 16), 'aes-256-cbc', $key, OPENSSL_RAW_DATA, substr($encrypted, 0, 16));
 	}
 
 	/**

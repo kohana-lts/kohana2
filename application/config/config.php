@@ -72,11 +72,12 @@ $config['internal_cache_encrypt'] = TRUE;
  * if internal_cache_encrypt is TRUE.
  * The cache is deleted when/if the key changes.
  *
- * [!!] Make sure you specify your own key here!
+ * [!!] Set a long random secret here, for example base64_encode(random_bytes(32)).
+ * Kohana::setup() throws an exception for an empty key or for 'foobar-changeme'.
  *
- * @default TRUE
+ * @default ''
  */
-$config['internal_cache_key'] = 'foobar-changeme';
+$config['internal_cache_key'] = '';
 
 /**
  * Enable or disable gzip output compression. This can dramatically decrease
