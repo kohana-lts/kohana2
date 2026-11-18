@@ -17,6 +17,13 @@ class html_Core {
 	public static $windowed_urls = FALSE;
 
 	/**
+	 * URL schemes that html::anchor() replaces with "#". Set an empty array
+	 * to allow all schemes.
+	 * @var array $blocked_schemes
+	 */
+	public static $blocked_schemes = array('javascript', 'vbscript', 'data');
+
+	/**
 	 * Wrapper for htmlspecialchars() that uses the default Kohana charset and
 	 * will encode both double and single quotes (using the ENT_QUOTES flag).
 	 *
@@ -89,7 +96,7 @@ class html_Core {
 				$attributes['target'] = '_blank';
 			}
 
-			$site_url = $uri;
+			$site_url = html::blocked_scheme($uri) ? '#' : $uri;
 		}
 
 		return
@@ -99,6 +106,40 @@ class html_Core {
 		.(is_array($attributes) ? html::attributes($attributes) : '').'>'
 		// Title empty? Use the parsed URL
 		.($escape_title ? htmlspecialchars((($title === NULL) ? $site_url : $title), ENT_QUOTES, Kohana::CHARSET, FALSE) : (($title === NULL) ? $site_url : $title)).'</a>';
+	}
+
+	/**
+	 * Checks if a URL uses one of html::$blocked_schemes. The URL is decoded
+	 * until it is stable, because anchor() does not double encode entities.
+	 *
+	 * @param   string  $url  URL
+	 * @return  boolean
+	 */
+	public static function blocked_scheme($url)
+	{
+		if (empty(html::$blocked_schemes))
+			return FALSE;
+
+		for ($i = 0; $i < 5; $i++)
+		{
+			$decoded = html_entity_decode($url, ENT_QUOTES | ENT_HTML5, Kohana::CHARSET);
+
+			if ($decoded === $url)
+				break;
+
+			$url = $decoded;
+		}
+
+		// Browsers ignore control characters and spaces in a scheme
+		$url = strtolower(preg_replace('/[\x00-\x20]+/', '', $url));
+
+		foreach (html::$blocked_schemes as $scheme)
+		{
+			if (strpos($url, strtolower($scheme).':') === 0)
+				return TRUE;
+		}
+
+		return FALSE;
 	}
 
 	/**

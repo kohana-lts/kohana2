@@ -139,13 +139,28 @@ class valid_Core {
 	 *     // Output:
 	 *     (boolean) true
 	 *
-	 * @param   string  $url URL
+	 *     // Allow ftp only (Validation rule: 'url[ftp]')
+	 *     valid::url($url, array('ftp'));
+	 *
+	 * By default only http and https URLs are valid, because other schemes
+	 * (javascript:, data:) give XSS when the URL is put in a link.
+	 *
+	 * @param   string  $url      URL
+	 * @param   array   $schemes  allowed schemes, NULL allows any scheme
 	 * @return  boolean
 	 */
-	public static function url($url)
+	public static function url($url, $schemes = array('http', 'https'))
 	{
 		// PHP 8 removed FILTER_FLAG_HOST_REQUIRED: FILTER_VALIDATE_URL always requires a host
-		return (bool) filter_var($url, FILTER_VALIDATE_URL);
+		if ( ! filter_var($url, FILTER_VALIDATE_URL))
+			return FALSE;
+
+		if ($schemes === NULL)
+			return TRUE;
+
+		$scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+		return in_array($scheme, array_map('strtolower', (array) $schemes), TRUE);
 	}
 
 	/**
