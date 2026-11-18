@@ -56,7 +56,9 @@ class upload_Core {
 	 * uploaded filename is to be assumed.
 	 *
 	 * The second function argument takes as its value a string and is
-	 * used to replace the given filename upon writing.
+	 * used to replace the given filename upon writing. The default name is
+	 * random, see [upload::filename]. save() does not check the file:
+	 * validate it with [upload::type] first.
 	 *
 	 * The third function argument takes as its value a string and
 	 * specifies the target directory of which the file is to be
@@ -89,8 +91,7 @@ class upload_Core {
 
 		if ($filename === NULL)
 		{
-			// Use the default filename, with a timestamp pre-pended
-			$filename = time().$file['name'];
+			$filename = upload::filename($file['name']);
 		}
 
 		if (Kohana::config('upload.remove_spaces') === TRUE)
@@ -111,7 +112,7 @@ class upload_Core {
 		if ( ! is_dir($directory) AND Kohana::config('upload.create_directories') === TRUE)
 		{
 			// Create the upload directory
-			mkdir($directory, 0777, TRUE);
+			mkdir($directory, 0755, TRUE);
 		}
 
 		if ( ! is_writable($directory))
@@ -130,6 +131,33 @@ class upload_Core {
 		}
 
 		return FALSE;
+	}
+
+	/**
+	 * Returns a random file name with the last extension of the client
+	 * file name in lower case. Only [a-z0-9]{1,16} is kept as extension,
+	 * so "x.php.jpg" gives "<32 hex>.jpg".
+	 *
+	 * @param   string  client file name
+	 * @return  string
+	 */
+	public static function filename($name)
+	{
+		$filename = bin2hex(random_bytes(16));
+
+		$name = (string) $name;
+
+		if (($dot = strrpos($name, '.')) !== FALSE)
+		{
+			$extension = strtolower(substr($name, $dot + 1));
+
+			if (preg_match('/^[a-z0-9]{1,16}$/D', $extension))
+			{
+				$filename .= '.'.$extension;
+			}
+		}
+
+		return $filename;
 	}
 
 	/* Validation Rules */
@@ -182,7 +210,13 @@ class upload_Core {
 
 	/**
 	 * This method tests the input data to validate if it is permitted
-	 * by extension.
+	 * by extension and by content.
+	 *
+	 * The last extension of the file name must be in $allowed_types. When
+	 * the config option upload.check_mime is TRUE (default) and finfo exists,
+	 * the MIME type of the content must also be in config/mimes.php for
+	 * that extension. An extension without a mimes.php entry fails: add the
+	 * entry in your application config.
 	 *
 	 * [!!] These methods *can* be used independently; but, they are best utilized in conjunction with [Validation:add_rules]
 	 *
@@ -193,18 +227,38 @@ class upload_Core {
 	 * 
 	 * @param   array    $file          $_FILES item
 	 * @param   array    $allowed_types Allowed file extensions
+	 * @param   boolean  $check_mime    Check the content, NULL uses upload.check_mime
 	 * @return  bool
 	 */
-	public static function type(array $file, array $allowed_types)
+	public static function type(array $file, array $allowed_types, $check_mime = NULL)
 	{
 		if ((int) $file['error'] !== UPLOAD_ERR_OK)
 			return TRUE;
 
 		// Get the default extension of the file
-		$extension = strtolower(substr(strrchr($file['name'], '.'), 1));
+		$extension = strtolower((string) substr((string) strrchr($file['name'], '.'), 1));
 
 		// Make sure there is an extension and that the extension is allowed
-		return ( ! empty($extension) AND in_array($extension, $allowed_types));
+		if (empty($extension) OR ! in_array($extension, $allowed_types))
+			return FALSE;
+
+		if ($check_mime === NULL)
+		{
+			$check_mime = (Kohana::config('upload.check_mime') !== FALSE);
+		}
+
+		if ( ! $check_mime OR ! class_exists('finfo', FALSE))
+			return TRUE;
+
+		$mimes = Kohana::config('mimes.'.$extension);
+
+		if (empty($mimes) OR ! is_file($file['tmp_name']))
+			return FALSE;
+
+		$finfo = new finfo(FILEINFO_MIME_TYPE);
+		$mime = $finfo->file($file['tmp_name']);
+
+		return ($mime !== FALSE AND in_array($mime, (array) $mimes, TRUE));
 	}
 
 	/**
