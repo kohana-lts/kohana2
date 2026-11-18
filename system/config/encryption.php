@@ -14,26 +14,22 @@
 /**
  * Group Options:
  *
- *  For best security, your encryption key should be at least 16 characters
- *  long and contain letters, numbers, and symbols.
+ * - key    - Secret key for encryption and decryption. Use at least 32 random
+ *            bytes, for example base64_encode(random_bytes(32)). There is no
+ *            default: Encrypt throws an exception until you set a key.
  *
- * - key    - Encryption key used to do encryption and decryption. The default option
- *           should never be used for a production website.
+ * The next options are only for values that the old mcrypt version of
+ * Encrypt wrote. These values have no MAC. Disable 'legacy' when the
+ * migration is complete.
  *
- *  [!!] Do not use a hash as your key. This significantly lowers encryption entropy.
- *
- * - mode   - MCrypt encryption mode. By default, MCRYPT_MODE_NOFB is used. This mode
- *           offers initialization vector support, is suited to short strings, and
- *           produces the shortest encrypted output.
- *
- * - cipher - MCrypt encryption cipher. By default, the MCRYPT_RIJNDAEL_128 cipher is used.
- *           This is also known as 128-bit AES.
- *
- * 	For more information about mcrypt modes and cipers see the [mcrypt php docs](http://php.net/mcrypt).
+ * - legacy - Decode values from the mcrypt version. Default FALSE.
+ * - cipher - mcrypt cipher of these values. Only 'rijndael-128' is supported.
+ * - mode   - mcrypt mode of these values: nofb, cbc, ncfb, cfb or ecb.
  */
 $config['default'] = array
 (
-	'key'    => 'K0H@NA+PHP_7hE-SW!FtFraM3w0R|<',
-	'mode'   => MCRYPT_MODE_NOFB,
-	'cipher' => MCRYPT_RIJNDAEL_128
+	'key'    => '',
+	'legacy' => FALSE,
+	'mode'   => 'nofb',
+	'cipher' => 'rijndael-128',
 );

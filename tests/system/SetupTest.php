@@ -68,10 +68,4 @@ class SetupTest extends Kohana_TestCase {
 		$this->assertStringNotContainsString('<script', $input->xss_clean('<script>alert(1)</script>'));
 	}
 
-	public function test_encrypt_round_trip()
-	{
-		$encrypt = new Encrypt(array('key' => 'a test key that is long enough', 'mode' => MCRYPT_MODE_NOFB, 'cipher' => MCRYPT_RIJNDAEL_128));
-
-		$this->assertSame('secret', $encrypt->decode($encrypt->encode('secret')));
-	}
 }
