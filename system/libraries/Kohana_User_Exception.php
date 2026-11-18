@@ -19,7 +19,7 @@ class Kohana_User_Exception_Core extends Kohana_Exception {
 	 * @param   string  exception message string
 	 * @param   string  custom error template
 	 */
-	public function __construct($title, $message, array $variables = NULL)
+	public function __construct($title, $message, ?array $variables = NULL)
 	{
 		parent::__construct($message, $variables);
 

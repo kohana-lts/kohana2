@@ -710,7 +710,7 @@ class ORM_Core {
 	 * @return  ORM
 	 * @chainable
 	 */
-	public function validate(Validation $array = NULL)
+	public function validate(?Validation $array = NULL)
 	{
 		if ($array === NULL)
 			$array = new Validation($this->object);
