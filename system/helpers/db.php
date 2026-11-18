@@ -147,4 +147,19 @@
 		return new Database_Expression($expression);
 	}
 
+	/**
+	 * Escapes the LIKE wildcards `%` and `_` and the escape character, so
+	 * the value matches only itself. Add `%` after the call for a prefix match.
+	 *
+	 *     $builder->where('name', 'LIKE', db::escape_like($input).'%');
+	 *
+	 * @param   string  value
+	 * @param   string  escape character (MySQL default: backslash)
+	 * @return  string
+	 */
+	public static function escape_like($value, $escape = '\\')
+	{
+		return str_replace(array($escape, '%', '_'), array($escape.$escape, $escape.'%', $escape.'_'), (string) $value);
+	}
+
 } // End db

@@ -28,6 +28,28 @@ class Database_Builder_Core {
 	// Valid ORDER BY directions. Use a Database_Expression for anything else.
 	protected $order_directions = array('ASC', 'DESC');
 
+	/**
+	 * @var  array  WHERE and HAVING operators (upper case, single spaces).
+	 * Add to this list for other operators. Never add input from a request.
+	 */
+	public static $operators = array(
+		'=', '!=', '<>', '<', '>', '<=', '>=', '<=>',
+		'IS', 'IS NOT', 'IN', 'NOT IN', 'BETWEEN', 'NOT BETWEEN',
+		'LIKE', 'NOT LIKE', 'LIKE BINARY', 'ILIKE', 'NOT ILIKE',
+		'REGEXP', 'NOT REGEXP', 'REGEXP BINARY', 'RLIKE', 'NOT RLIKE', 'SOUNDS LIKE',
+		'SIMILAR TO', 'NOT SIMILAR TO', '~', '~*', '!~', '!~*',
+		'EXISTS', 'NOT EXISTS', '&', '|',
+	);
+
+	/**
+	 * @var  array  JOIN types (upper case, single spaces). NULL gives a plain JOIN.
+	 */
+	public static $join_types = array(
+		'LEFT', 'RIGHT', 'INNER', 'OUTER', 'FULL', 'CROSS', 'NATURAL',
+		'LEFT OUTER', 'RIGHT OUTER', 'FULL OUTER', 'LEFT INNER', 'RIGHT INNER',
+		'NATURAL LEFT', 'NATURAL RIGHT', 'NATURAL LEFT OUTER', 'NATURAL RIGHT OUTER',
+	);
+
 	// Database object
 	protected $db;
 
@@ -263,8 +285,9 @@ class Database_Builder_Core {
 	 * @param  mixed   Table name
 	 * @param  mixed   Key, or an array of key => value pair, for join condition (can be a Database_Expression)
 	 * @param  mixed   Value if $keys is not an array or Database_Expression
-	 * @param  string  Join type (LEFT, RIGHT, INNER, etc.)
+	 * @param  string  Join type (LEFT, RIGHT, INNER, etc.), see Database_Builder::$join_types
 	 * @return Database_Builder
+	 * @throws Database_Exception  for an unknown join type
 	 */
 	public function join($table, $keys, $value = NULL, $type = NULL)
 	{
@@ -275,7 +298,10 @@ class Database_Builder_Core {
 
 		if ($type !== NULL)
 		{
-			$type = strtoupper($type);
+			$type = strtoupper(preg_replace('/\s+/', ' ', trim((string) $type)));
+
+			if ( ! in_array($type, Database_Builder::$join_types, TRUE))
+				throw new Database_Exception('Invalid JOIN type, see Database_Builder::$join_types');
 		}
 
 		$this->join[] = array($table, $keys, $type);
@@ -1133,7 +1159,11 @@ class Database_Builder_Core {
 					}
 					else
 					{
-						$op = strtoupper($op);
+						// Validate here: triplet arrays and ORM find() do not pass where()
+						$op = strtoupper(preg_replace('/\s+/', ' ', trim((string) $op)));
+
+						if ( ! in_array($op, Database_Builder::$operators, TRUE))
+							throw new Database_Exception('Invalid operator, see Database_Builder::$operators');
 
 						if ( ! is_array($columns))
 						{

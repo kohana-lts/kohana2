@@ -28,7 +28,20 @@
  *  - table_prefix  - Database table prefix
  *  - object        - Enable or disable object results
  *  - cache         - Enable or disable query caching
- *  - escape        - Enable automatic query builder escaping
+ *  - escape        - Enable automatic query builder escaping. FALSE turns off
+ *                  all value and identifier quoting, so every value goes into
+ *                  the SQL as is. Never set FALSE when a query uses untrusted
+ *                  data. The library logs an alert when it is FALSE.
+ *
+ * Query builder input rules:
+ *
+ *  - Operators must be in Database_Builder::$operators and JOIN types in
+ *    Database_Builder::$join_types. Add to these arrays for more.
+ *  - ORDER BY directions must be ASC, DESC or a Database_Expression.
+ *  - A column string with double quotes may contain only function calls
+ *    such as COUNT(DISTINCT "users.id"). Use db::expr() for other SQL, or set
+ *    Database::$legacy_column_expressions = TRUE for the old pass-through.
+ *  - Use db::escape_like() for LIKE values from input.
  */
 $config['default'] = array
 (

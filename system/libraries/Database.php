@@ -40,6 +40,12 @@ abstract class Database_Core {
 	protected $quote = '"';
 
 	/**
+	 * @var  boolean  TRUE passes column strings that contain `"` to the SQL
+	 * without a syntax check, as Kohana 2.4 did. Unsafe with request input.
+	 */
+	public static $legacy_column_expressions = FALSE;
+
+	/**
 	 * Returns a singleton instance of Database.
 	 *
 	 * @param   string  Database name
@@ -78,6 +84,12 @@ abstract class Database_Core {
 	{
 		// Store the config locally
 		$this->config = $config;
+
+		if (empty($this->config['escape']))
+		{
+			// See the 'escape' option in config/database.php
+			Kohana_Log::add('alert', 'Database: escape is FALSE, so values and identifiers are not quoted');
+		}
 
 		if ($this->config['cache'] !== FALSE)
 		{
@@ -390,7 +402,8 @@ abstract class Database_Core {
 	}
 
 	/**
-	 * Quotes the given value
+	 * Quotes the given value. With the config option 'escape' => FALSE it
+	 * returns the value as is, so never use that option with untrusted data.
 	 *
 	 * @param   mixed  value
 	 * @return  mixed
@@ -433,9 +446,10 @@ abstract class Database_Core {
 	 * Quotes a table, adding the table prefix
 	 * Reserved characters not allowed in table names for the builder are [ .*] (space, dot, asterisk)
 	 *
-	 * @param   string|array    table name or array - 'users u' or array('u' => 'users') both valid
+	 * @param   string|array    table name or array - 'users u', 'users AS u' or array('u' => 'users')
 	 * @param   string          table alias
 	 * @return  string
+	 * @throws  Database_Exception  for a table string with more than a name and an alias
 	 */
 	public function quote_table($table, $alias = NULL)
 	{
@@ -445,11 +459,6 @@ abstract class Database_Core {
 			$alias = key($table);
 			$table = reset($table);
 		}
-		elseif (strpos(' ', $table) !== FALSE)
-		{
-			// Using format 'user u'
-			list($table, $alias) = explode(' ', $table);
-		}
 
 		if ($table instanceof Database_Expression)
 		{
@@ -457,7 +466,7 @@ abstract class Database_Core {
 			{
 				if ($this->config['escape'])
 				{
-					$alias = $this->quote.$alias.$this->quote;
+					$alias = $this->quote_identifier($alias);
 				}
 
 				return $table.' AS '.$alias;
@@ -466,26 +475,41 @@ abstract class Database_Core {
 			return (string) $table;
 		}
 
+		$table = (string) $table;
+
+		if (strpos($table, ' ') !== FALSE)
+		{
+			// Using format 'user u' or 'user AS u'
+			$parts = preg_split('/\s+/', trim($table));
+
+			if (count($parts) === 3 AND strtoupper($parts[1]) === 'AS')
+			{
+				unset($parts[1]);
+			}
+
+			if (count($parts) !== 2)
+				throw new Database_Exception('Invalid table name, use "table alias" or a Database_Expression');
+
+			list($table, $alias) = array_values($parts);
+		}
+
 		if ($this->config['table_prefix'])
 		{
 			$table = $this->config['table_prefix'].$table;
 		}
 
-		if ($alias)
-		{
-			if ($this->config['escape'])
-			{
-				$table = $this->quote.$table.$this->quote;
-				$alias = $this->quote.$alias.$this->quote;
-			}
-
-			return $table.' AS '.$alias;
-		}
-
 		if ($this->config['escape'])
 		{
-			$table = $this->quote.$table.$this->quote;
+			$table = $this->quote_identifier($table);
+
+			if ($alias)
+			{
+				$alias = $this->quote_identifier($alias);
+			}
 		}
+
+		if ($alias)
+			return $table.' AS '.$alias;
 
 		return $table;
 	}
@@ -493,11 +517,15 @@ abstract class Database_Core {
 	/**
 	 * Quotes column or table.column, adding the table prefix if necessary
 	 * Reserved characters not allowed in table names for the builder are [ .*] (space, dot, asterisk)
-	 * Complex column names must have table/columns in double quotes, e.g. array('mycount' => 'COUNT("users.id")')
+	 *
+	 * A string with double quotes is a function form, e.g. array('mycount' => 'COUNT("users.id")').
+	 * It may contain only function calls, optional DISTINCT, `*`, integers and
+	 * "quoted" names. Use a Database_Expression for other SQL.
 	 *
 	 * @param   string|array    column name or array('u' => 'COUNT("*")')
 	 * @param   string          column alias
 	 * @return  string
+	 * @throws  Database_Exception  for a function form with other SQL
 	 */
 	public function quote_column($column, $alias = NULL)
 	{
@@ -516,7 +544,7 @@ abstract class Database_Core {
 			{
 				if ($this->config['escape'])
 				{
-					$alias = $this->quote.$alias.$this->quote;
+					$alias = $this->quote_identifier($alias);
 				}
 
 				return $column.' AS '.$alias;
@@ -525,55 +553,206 @@ abstract class Database_Core {
 			return (string) $column;
 		}
 
-		if ($this->config['table_prefix'] AND strpos($column, '.') !== FALSE)
+		$column = (string) $column;
+
+		if ( ! $this->config['escape'])
 		{
-			if (strpos($column, '"') !== FALSE)
+			if ($this->config['table_prefix'] AND strpos($column, '.') !== FALSE)
 			{
-				// Find "table.column" and replace them with "[prefix]table.column"
-				$column = preg_replace('/"([^.]++)\.([^"]++)"/', '"'.$this->config['table_prefix'].'$1.$2"', $column);
+				$column = (strpos($column, '"') === FALSE)
+					? $this->config['table_prefix'].$column
+					: $this->prefix_quoted_names($column);
 			}
-			else
+
+			// Strip double quotes
+			$column = str_replace('"', '', $column);
+
+			if ($alias)
+				return $column.' AS '.$alias;
+
+			return $column;
+		}
+
+		if (strpos($column, '"') === FALSE)
+		{
+			if ($this->config['table_prefix'] AND strpos($column, '.') !== FALSE)
 			{
 				// Attach table prefix if table.column format
 				$column = $this->config['table_prefix'].$column;
 			}
-		}
 
-		if ($this->config['escape'])
+			$column = $this->quote_name_path($column);
+		}
+		elseif (Database::$legacy_column_expressions)
 		{
-			if (strpos($column, '"') === FALSE)
+			if ($this->config['table_prefix'] AND strpos($column, '.') !== FALSE)
 			{
-				// Quote the column
-				$column = $this->quote.$column.$this->quote;
+				$column = $this->prefix_quoted_names($column);
 			}
-			elseif ($this->quote !== '"')
+
+			if ($this->quote !== '"')
 			{
 				// Replace double quotes
 				$column = str_replace('"', $this->quote, $column);
 			}
 
-			// Replace . with "."
+			// Replace . with "." and unescape any asterisks
 			$column = str_replace('.', $this->quote.'.'.$this->quote, $column);
-
-			// Unescape any asterisks
 			$column = str_replace($this->quote.'*'.$this->quote, '*', $column);
-
-			if ($alias)
-			{
-				// Quote the alias
-				return $column.' AS '.$this->quote.$alias.$this->quote;
-			}
-
-			return $column;
+		}
+		else
+		{
+			$column = $this->quote_function_form($column);
 		}
 
-		// Strip double quotes
-		$column = str_replace('"', '', $column);
-
 		if ($alias)
-			return $column.' AS '.$alias;
+			return $column.' AS '.$this->quote_identifier($alias);
 
 		return $column;
+	}
+
+	/**
+	 * Quotes one identifier. Embedded quote characters are doubled.
+	 *
+	 * @param   string  identifier
+	 * @return  string
+	 */
+	public function quote_identifier($name)
+	{
+		return $this->quote.str_replace($this->quote, $this->quote.$this->quote, (string) $name).$this->quote;
+	}
+
+	/**
+	 * Quotes each part of a dotted name, e.g. table.column. A `*` part stays as is.
+	 *
+	 * @param   string  name
+	 * @return  string
+	 */
+	protected function quote_name_path($name)
+	{
+		$parts = array();
+
+		foreach (explode('.', $name) as $part)
+		{
+			$parts[] = ($part === '*') ? '*' : $this->quote_identifier($part);
+		}
+
+		return implode('.', $parts);
+	}
+
+	/**
+	 * Adds the table prefix to each "table.column" in a string.
+	 *
+	 * @param   string  column string
+	 * @return  string
+	 */
+	protected function prefix_quoted_names($column)
+	{
+		return preg_replace('/"([^".]++)\.([^"]++)"/', '"'.$this->config['table_prefix'].'$1.$2"', $column);
+	}
+
+	/**
+	 * Parses and quotes a function form such as COUNT(DISTINCT "users.id").
+	 * Grammar: expr = "name" | WORD ( [DISTINCT] [arg {, arg}] ), arg = expr | * | number.
+	 *
+	 * @param   string  column string
+	 * @return  string
+	 * @throws  Database_Exception
+	 */
+	protected function quote_function_form($column)
+	{
+		if ( ! preg_match_all('/"[^"]+"|[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[(),*]|\s+/', $column, $matches)
+			OR implode('', $matches[0]) !== $column)
+			throw new Database_Exception('Invalid column, use a Database_Expression for SQL expressions');
+
+		$tokens = array();
+
+		foreach ($matches[0] as $token)
+		{
+			if (trim($token) !== '')
+			{
+				$tokens[] = $token;
+			}
+		}
+
+		$i = 0;
+		$sql = $this->parse_function_form($tokens, $i);
+
+		if ($sql === NULL OR $i !== count($tokens))
+			throw new Database_Exception('Invalid column, use a Database_Expression for SQL expressions');
+
+		return $sql;
+	}
+
+	/**
+	 * Parses one expression of a function form, see [Database::quote_function_form].
+	 *
+	 * @param   array    tokens
+	 * @param   integer  token position, moved past the expression
+	 * @param   boolean  accept `*` and numbers (function arguments only)
+	 * @return  string   quoted SQL, or NULL for a syntax error
+	 */
+	protected function parse_function_form(array $tokens, & $i, $argument = FALSE)
+	{
+		if ( ! isset($tokens[$i]))
+			return NULL;
+
+		$token = $tokens[$i++];
+
+		if ($token[0] === '"')
+		{
+			$name = substr($token, 1, -1);
+
+			if ($this->config['table_prefix'] AND strpos($name, '.') !== FALSE)
+			{
+				$name = $this->config['table_prefix'].$name;
+			}
+
+			return $this->quote_name_path($name);
+		}
+
+		if ($argument AND ($token === '*' OR ctype_digit($token[0])))
+			return $token;
+
+		if ( ! preg_match('/^[A-Za-z_]/', $token) OR ! isset($tokens[$i]) OR $tokens[$i] !== '(')
+			return NULL;
+
+		// Function call
+		$sql = $token.'(';
+		$i++;
+
+		if (isset($tokens[$i]) AND $tokens[$i] === ')')
+		{
+			$i++;
+			return $sql.')';
+		}
+
+		if (isset($tokens[$i]) AND strtoupper($tokens[$i]) === 'DISTINCT')
+		{
+			$sql .= 'DISTINCT ';
+			$i++;
+		}
+
+		$args = array();
+
+		while (TRUE)
+		{
+			if (($arg = $this->parse_function_form($tokens, $i, TRUE)) === NULL)
+				return NULL;
+
+			$args[] = $arg;
+
+			if ( ! isset($tokens[$i]))
+				return NULL;
+
+			$token = $tokens[$i++];
+
+			if ($token === ')')
+				return $sql.implode(', ', $args).')';
+
+			if ($token !== ',')
+				return NULL;
+		}
 	}
 
 	/**
