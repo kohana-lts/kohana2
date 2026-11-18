@@ -38,9 +38,10 @@ class SetupTest extends Kohana_TestCase {
 		$this->assertTrue(valid::email('user@example.com'));
 		$this->assertFalse(valid::email('not an email'));
 		$this->assertSame('hello_world', url::title('Hello World', '_'));
-		$this->assertSame(5, utf8::strlen('ščćžđ'));
+		$this->assertSame('đžćčš', utf8::strrev('ščćžđ'));
 		$this->assertSame('Ščćžđ', utf8::ucfirst('ščćžđ'));
-		$this->assertSame('1.00 kB', text::bytes(1024));
+		$this->assertSame('1.02 kB', text::bytes(1024));
+		$this->assertSame('1.00 KiB', text::bytes(1024, NULL, NULL, FALSE));
 		$this->assertIsString(text::random('alnum', 10));
 		$this->assertSame('apples', inflector::plural('apple'));
 		$this->assertSame('a&amp;b', html::chars('a&b'));
