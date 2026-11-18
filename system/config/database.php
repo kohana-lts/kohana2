@@ -38,8 +38,9 @@
  *  - Operators must be in Database_Builder::$operators and JOIN types in
  *    Database_Builder::$join_types. Add to these arrays for more.
  *  - ORDER BY directions must be ASC, DESC or a Database_Expression.
- *  - A column string with double quotes may contain only function calls
- *    such as COUNT(DISTINCT "users.id"). Use db::expr() for other SQL, or set
+ *  - A column string with double quotes may contain only calls of the
+ *    functions in Database::$column_functions, such as
+ *    COUNT(DISTINCT "users.id"). Use db::expr() for other SQL, or set
  *    Database::$legacy_column_expressions = TRUE for the old pass-through.
  *  - Use db::escape_like() for LIKE values from input.
  */

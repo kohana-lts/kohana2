@@ -46,6 +46,15 @@ abstract class Database_Core {
 	public static $legacy_column_expressions = FALSE;
 
 	/**
+	 * @var  array  functions allowed in a column string with `"`, see
+	 * quote_column(). Never add functions that branch or wait (IF, SLEEP).
+	 */
+	public static $column_functions = array(
+		'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'GROUP_CONCAT', 'IFNULL', 'COALESCE',
+		'LOWER', 'UPPER', 'LENGTH', 'CHAR_LENGTH', 'ROUND', 'ABS', 'DATE', 'YEAR', 'MONTH', 'DAY',
+	);
+
+	/**
 	 * Returns a singleton instance of Database.
 	 *
 	 * @param   string  Database name
@@ -519,8 +528,8 @@ abstract class Database_Core {
 	 * Reserved characters not allowed in table names for the builder are [ .*] (space, dot, asterisk)
 	 *
 	 * A string with double quotes is a function form, e.g. array('mycount' => 'COUNT("users.id")').
-	 * It may contain only function calls, optional DISTINCT, `*`, integers and
-	 * "quoted" names. Use a Database_Expression for other SQL.
+	 * It may contain only calls of Database::$column_functions, optional DISTINCT,
+	 * `*`, integers and "quoted" names. Use a Database_Expression for other SQL.
 	 *
 	 * @param   string|array    column name or array('u' => 'COUNT("*")')
 	 * @param   string          column alias
@@ -653,7 +662,9 @@ abstract class Database_Core {
 
 	/**
 	 * Parses and quotes a function form such as COUNT(DISTINCT "users.id").
-	 * Grammar: expr = "name" | WORD ( [DISTINCT] [arg {, arg}] ), arg = expr | * | number.
+	 * Grammar: expr = "name" | FUNCTION ( [DISTINCT] [arg {, arg}] ), arg = expr | * | number.
+	 * FUNCTION must be in Database::$column_functions: other functions can read
+	 * data by timing or errors.
 	 *
 	 * @param   string  column string
 	 * @return  string
@@ -714,7 +725,8 @@ abstract class Database_Core {
 		if ($argument AND ($token === '*' OR ctype_digit($token[0])))
 			return $token;
 
-		if ( ! preg_match('/^[A-Za-z_]/', $token) OR ! isset($tokens[$i]) OR $tokens[$i] !== '(')
+		if ( ! in_array(strtoupper($token), Database::$column_functions, TRUE)
+			OR ! isset($tokens[$i]) OR $tokens[$i] !== '(')
 			return NULL;
 
 		// Function call

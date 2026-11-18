@@ -125,7 +125,7 @@ class DatabaseBuilderTest extends Kohana_TestCase {
 			array('COUNT(DISTINCT "users.id")', 'COUNT(DISTINCT `users`.`id`)'),
 			array('IFNULL(SUM("a"), 0)', 'IFNULL(SUM(`a`), 0)'),
 			array('ROUND(AVG("t.score"), 2)', 'ROUND(AVG(`t`.`score`), 2)'),
-			array('NOW("x")', 'NOW(`x`)'),
+			array('max("x")', 'max(`x`)'),
 			array('IFNULL("a",0)', 'IFNULL(`a`, 0)'),
 			array('"a`b"', '`a``b`'),
 		);
@@ -165,6 +165,13 @@ class DatabaseBuilderTest extends Kohana_TestCase {
 			array('0 "a"'),
 			array('COUNT("a",)'),
 			array('"a" OR 1'),
+			array('IF(STRCMP(SUBSTR("password",1,1),CHAR(97)),0,SLEEP(5))'),
+			array('SLEEP("a")'),
+			array('BENCHMARK(1000000, MD5("a"))'),
+			array('LOAD_FILE(CHAR(47), "a")'),
+			array('EXTRACTVALUE(1, CONCAT(1, "password"))'),
+			array('COUNT(SLEEP(5), "a")'),
+			array('NOW()'.'"'),
 		);
 	}
 
@@ -176,6 +183,31 @@ class DatabaseBuilderTest extends Kohana_TestCase {
 		$this->expectException(Database_Exception::class);
 
 		Database_Kb_Stub::factory()->quote_column($column);
+	}
+
+	public function test_column_functions_can_be_extended()
+	{
+		$functions = Database::$column_functions;
+		Database::$column_functions[] = 'CHAR_LENGTH_X';
+
+		try
+		{
+			$this->assertSame('CHAR_LENGTH_X(`a`)', Database_Kb_Stub::factory()->quote_column('CHAR_LENGTH_X("a")'));
+		}
+		finally
+		{
+			Database::$column_functions = $functions;
+		}
+	}
+
+	public function test_escape_false_passes_names_as_is()
+	{
+		$db = Database_Kb_Stub::factory('`', array('escape' => FALSE, 'table_prefix' => 'p_'));
+
+		$this->assertSame('p_users.id AS uid', $db->quote_column('users.id', 'uid'));
+		$this->assertSame('COUNT(p_users.id)', $db->quote_column('COUNT("users.id")'));
+		$this->assertSame('p_users AS u', $db->quote_table('users u'));
+		$this->assertSame("x'y", $db->quote("x'y"));
 	}
 
 	public function test_quote_column_legacy_mode_passes_raw_sql()
