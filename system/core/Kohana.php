@@ -229,8 +229,10 @@ abstract class Kohana_Core {
 			Kohana_Log::add('debug', 'Disable register_globals! It is evil and deprecated: http://php.net/register_globals');
 		}
 
-		// Enable Kohana routing
+		// Enable Kohana routing. Input cleans the global input on every request,
+		// after find_uri() fills $_GET for CLI requests.
 		Event::add('system.routing', array('Router', 'find_uri'));
+		Event::add('system.routing', array('Input', 'instance'));
 		Event::add('system.routing', array('Router', 'setup'));
 
 		// Enable Kohana controller initialization
@@ -250,9 +252,6 @@ abstract class Kohana_Core {
 				include $file;
 			}
 		}
-
-		// Clean the global input on every request, after hooks can change the config
-		Input::instance();
 
 		// Stop the environment setup routine
 		Benchmark::stop(SYSTEM_BENCHMARK.'_environment_setup');

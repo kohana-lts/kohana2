@@ -2,8 +2,8 @@
 /**
  * Input library.
  *
- * Kohana::setup() creates the instance, so the global input cleaning and
- * global xss filtering run on every request.
+ * The system.routing event creates the instance, so the global input
+ * cleaning and global xss filtering run on every request.
  *
  * ##### Loading the Library
  *
