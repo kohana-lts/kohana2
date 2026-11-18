@@ -254,6 +254,11 @@ class Input_Core {
 	/**
 	 * Fetch the IP Address.
 	 *
+	 * Returns REMOTE_ADDR. When REMOTE_ADDR is in the input.trusted_proxies
+	 * config, it returns the right-most X-Forwarded-For (or Client-IP) hop
+	 * that is not a trusted proxy. Returns '0.0.0.0' when there is no valid
+	 * address.
+	 *
 	 * ##### Example
 	 *
 	 *    echo $input->ip_address();
@@ -268,32 +273,112 @@ class Input_Core {
 		if ($this->ip_address !== NULL)
 			return $this->ip_address;
 
-		// Server keys that could contain the client IP address
-		$keys = array('HTTP_X_FORWARDED_FOR', 'HTTP_CLIENT_IP', 'REMOTE_ADDR');
+		$ip = isset($_SERVER['REMOTE_ADDR']) ? trim($_SERVER['REMOTE_ADDR']) : '';
 
-		foreach ($keys as $key)
+		if ( ! filter_var($ip, FILTER_VALIDATE_IP))
+			return $this->ip_address = '0.0.0.0';
+
+		$proxies = (array) Kohana::config('input.trusted_proxies');
+
+		if ($proxies AND Input::ip_in_list($ip, $proxies))
 		{
-			if ($ip = $this->server($key))
+			if ( ! empty($_SERVER['HTTP_X_FORWARDED_FOR']))
 			{
-				$this->ip_address = $ip;
+				$hops = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+			}
+			elseif ( ! empty($_SERVER['HTTP_CLIENT_IP']))
+			{
+				$hops = array($_SERVER['HTTP_CLIENT_IP']);
+			}
+			else
+			{
+				$hops = array();
+			}
 
-				// An IP address has been found
-				break;
+			// Only a trusted hop vouches for the hop on its left
+			foreach (array_reverse($hops) as $hop)
+			{
+				$hop = trim($hop);
+
+				if ( ! filter_var($hop, FILTER_VALIDATE_IP))
+					break;
+
+				$ip = $hop;
+
+				if ( ! Input::ip_in_list($hop, $proxies))
+					break;
 			}
 		}
 
-		if ($comma = strrpos($this->ip_address, ',') !== FALSE)
+		return $this->ip_address = $ip;
+	}
+
+	/**
+	 * Checks if an IP address is in one of a list of addresses or CIDR ranges.
+	 *
+	 * @param   string  $ip      IP address
+	 * @param   array   $ranges  IP addresses or CIDR ranges
+	 * @return  boolean
+	 */
+	public static function ip_in_list($ip, array $ranges)
+	{
+		foreach ($ranges as $range)
 		{
-			$this->ip_address = substr($this->ip_address, $comma + 1);
+			if (Input::ip_in_range($ip, $range))
+				return TRUE;
 		}
 
-		if ( ! valid::ip($this->ip_address))
+		return FALSE;
+	}
+
+	/**
+	 * Checks if an IP address is in a CIDR range ('10.0.0.0/8',
+	 * '2001:db8::/32') or is equal to a single address. IPv4 and IPv6 do not
+	 * match each other.
+	 *
+	 * @param   string  $ip     IP address
+	 * @param   string  $range  IP address or CIDR range
+	 * @return  boolean
+	 */
+	public static function ip_in_range($ip, $range)
+	{
+		$parts  = explode('/', trim((string) $range), 2);
+		$subnet = $parts[0];
+
+		if ( ! filter_var($ip, FILTER_VALIDATE_IP) OR ! filter_var($subnet, FILTER_VALIDATE_IP))
+			return FALSE;
+
+		$ip     = inet_pton($ip);
+		$subnet = inet_pton($subnet);
+
+		if (strlen($ip) !== strlen($subnet))
+			return FALSE;
+
+		$max = strlen($ip) * 8;
+
+		if (isset($parts[1]))
 		{
-			// Use an empty IP
-			$this->ip_address = '0.0.0.0';
+			if ( ! ctype_digit($parts[1]) OR (int) $parts[1] > $max)
+				return FALSE;
+
+			$bits = (int) $parts[1];
+		}
+		else
+		{
+			$bits = $max;
 		}
 
-		return $this->ip_address;
+		$bytes = intdiv($bits, 8);
+
+		if (substr($ip, 0, $bytes) !== substr($subnet, 0, $bytes))
+			return FALSE;
+
+		if ($bits % 8 === 0)
+			return TRUE;
+
+		$mask = chr((0xFF << (8 - $bits % 8)) & 0xFF);
+
+		return ($ip[$bytes] & $mask) === ($subnet[$bytes] & $mask);
 	}
 
 	/**
