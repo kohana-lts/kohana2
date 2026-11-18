@@ -337,7 +337,8 @@ class Kohana_Exception_Core extends Exception {
 					if ($key === $marker) continue;
 					if ( ! is_int($key))
 					{
-						$key = '"'.$key.'"';
+						// Keys can come from the request, and the output is HTML
+						$key = '"'.htmlspecialchars($key, ENT_NOQUOTES, Kohana::CHARSET).'"';
 					}
 
 					$output[] = "$space$s$key => ".Kohana_Exception::_dump($val, $length, $max_level, $level + 1);

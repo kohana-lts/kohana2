@@ -86,4 +86,13 @@ class ErrorViewTest extends Kohana_TestCase {
 
 		$this->assertNoTag($html, 'the URI');
 	}
+
+	public function test_dump_escapes_array_keys()
+	{
+		$output = Kohana_Exception::dump(array('<script>alert(1)</script>' => 'x', 'nested' => array('<b>' => 1)));
+
+		$this->assertStringNotContainsString('<script>', $output);
+		$this->assertStringNotContainsString('<b>', $output);
+		$this->assertStringContainsString('&lt;script&gt;', $output);
+	}
 }
