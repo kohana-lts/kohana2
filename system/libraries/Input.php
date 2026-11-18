@@ -87,19 +87,7 @@ class Input_Core {
 
 		if (Input::$instance === NULL)
 		{
-			// magic_quotes_runtime is enabled
-			if (get_magic_quotes_runtime())
-			{
-				@set_magic_quotes_runtime(0);
-				Kohana_Log::add('debug', 'Disable magic_quotes_runtime! It is evil and deprecated: http://php.net/magic_quotes');
-			}
-
-			// magic_quotes_gpc is enabled
-			if (get_magic_quotes_gpc())
-			{
-				$this->magic_quotes_gpc = TRUE;
-				Kohana_Log::add('debug', 'Disable magic_quotes_gpc! It is evil and deprecated: http://php.net/magic_quotes');
-			}
+			// PHP 5.4 removed magic quotes, so $this->magic_quotes_gpc stays FALSE
 
 			if (is_array($_GET))
 			{

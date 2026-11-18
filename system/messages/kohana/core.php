@@ -24,7 +24,7 @@ $messages = array
 		E_COMPILE_WARNING    => 'Warning Message',
 		E_CORE_WARNING       => 'Warning Message',
 		E_USER_WARNING       => 'Warning Message',
-		E_STRICT             => 'Strict Mode Error',
+		2048                 => 'Strict Mode Error', // E_STRICT, deprecated in PHP 8.4
 		E_NOTICE             => 'Runtime Message',
 		E_USER_NOTICE        => 'Runtime Message',
 	),

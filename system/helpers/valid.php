@@ -144,7 +144,8 @@ class valid_Core {
 	 */
 	public static function url($url)
 	{
-		return (bool) filter_var($url, FILTER_VALIDATE_URL, FILTER_FLAG_HOST_REQUIRED);
+		// PHP 8 removed FILTER_FLAG_HOST_REQUIRED: FILTER_VALIDATE_URL always requires a host
+		return (bool) filter_var($url, FILTER_VALIDATE_URL);
 	}
 
 	/**

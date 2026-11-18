@@ -124,9 +124,6 @@ class Image_GD_Driver extends Image_Driver {
 
 				$status = isset($quality) ? $save($this->tmp_image, NULL, $quality) : $save($this->tmp_image);
 			}
-
-			// Destroy the temporary image
-			imagedestroy($this->tmp_image);
 		}
 
 		return $status;
@@ -164,7 +161,6 @@ class Image_GD_Driver extends Image_Driver {
 		if ($status === TRUE)
 		{
 			// Swap the new image for the old one
-			imagedestroy($this->tmp_image);
 			$this->tmp_image = $flipped;
 		}
 
@@ -187,7 +183,6 @@ class Image_GD_Driver extends Image_Driver {
 		if ($status = imagecopyresampled($img, $this->tmp_image, 0, 0, $properties['left'], $properties['top'], $width, $height, $width, $height))
 		{
 			// Swap the new image for the old one
-			imagedestroy($this->tmp_image);
 			$this->tmp_image = $img;
 		}
 
@@ -258,7 +253,6 @@ class Image_GD_Driver extends Image_Driver {
 			if ($status = imagecopyresized($img, $this->tmp_image, 0, 0, 0, 0, $pre_width, $pre_height, $width, $height))
 			{
 				// Swap the new image for the old one
-				imagedestroy($this->tmp_image);
 				$this->tmp_image = $img;
 			}
 
@@ -274,7 +268,6 @@ class Image_GD_Driver extends Image_Driver {
 		if ($status = imagecopyresampled($img, $this->tmp_image, 0, 0, 0, 0, $properties['width'], $properties['height'], $width, $height))
 		{
 			// Swap the new image for the old one
-			imagedestroy($this->tmp_image);
 			$this->tmp_image = $img;
 		}
 
@@ -303,7 +296,6 @@ class Image_GD_Driver extends Image_Driver {
 			imagesavealpha($img, TRUE);
 
 			// Swap the new image for the old one
-			imagedestroy($this->tmp_image);
 			$this->tmp_image = $img;
 		}
 
@@ -350,7 +342,6 @@ class Image_GD_Driver extends Image_Driver {
 
 		$this->imagecopymerge_alpha($this->tmp_image, $overlay_img, $properties['x'], $properties['y'], 0, 0, imagesx($overlay_img), imagesy($overlay_img), $properties['transparency']);
 
-		imagedestroy($overlay_img);
 
 		return TRUE;
 	}

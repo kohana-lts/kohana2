@@ -192,7 +192,7 @@ class Database_Builder_Core {
 	 */
 	public function and_where($columns, $op = '=', $value = NULL)
 	{
-		if (is_array($columns[0]))
+		if (isset($columns[0]) AND is_array($columns[0]))
 		{
 			// We have an array of arrays
 			foreach ($columns as $column)
@@ -225,7 +225,7 @@ class Database_Builder_Core {
 	 */
 	public function or_where($columns, $op = '=', $value = NULL)
 	{
-		if (is_array($columns[0]))
+		if (isset($columns[0]) AND is_array($columns[0]))
 		{
 			// We have an array of arrays
 			foreach ($columns as $column)
@@ -438,7 +438,7 @@ class Database_Builder_Core {
 	 */
 	public function and_having($columns, $op = '=', $value = NULL)
 	{
-		if (is_array($columns[0]))
+		if (isset($columns[0]) AND is_array($columns[0]))
 		{
 			// We have an array of arrays
 			foreach ($columns as $column)
@@ -470,7 +470,7 @@ class Database_Builder_Core {
 	 */
 	public function or_having($columns, $op = '=', $value = NULL)
 	{
-		if (is_array($columns[0]))
+		if (isset($columns[0]) AND is_array($columns[0]))
 		{
 			// We have an array of arrays
 			foreach ($columns as $column)
@@ -1195,7 +1195,8 @@ class Database_Builder_Core {
 
 		foreach ($this->order_by as $column => $order_by)
 		{
-			list($column, $direction) = each($order_by);
+			$direction = reset($order_by);
+			$column = key($order_by);
 
 			$column = $this->db->quote_column($column);
 
