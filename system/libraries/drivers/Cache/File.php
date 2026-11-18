@@ -123,17 +123,19 @@ class Cache_File_Driver extends Cache_Driver {
 		if ($this->expired($file))
 			return NULL;
 
-		// Turn off errors while reading the file
+		// Turn off errors while reading the file: a broken file is a miss
 		$ER = error_reporting(0);
 
 		$data = file_get_contents($file);
+		$data = ($data === FALSE) ? FALSE : unserialize($data);
 
 		error_reporting($ER);
 
 		if ($data === FALSE)
-			return NULL;
-
-		$data = unserialize($data);
+		{
+			// Kohana's shutdown handler would report the suppressed error
+			error_clear_last();
+		}
 
 		if ( ! is_array($data) OR ! isset($data['key'], $data['tags']) OR ! array_key_exists('value', $data))
 			return NULL;

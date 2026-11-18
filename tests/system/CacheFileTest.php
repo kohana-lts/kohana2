@@ -153,4 +153,15 @@ class CacheFileTest extends Kohana_TestCase {
 		$this->assertNull($cache->get('b'));
 		$this->assertFileExists($this->dir.'/kohana_find_file_paths');
 	}
+
+	public function test_broken_file_is_a_miss()
+	{
+		$cache = $this->cache();
+		$cache->set('a', str_repeat('x', 100));
+
+		$files = glob($this->dir.'/*');
+		file_put_contents($files[0], substr(file_get_contents($files[0]), 0, 20));
+
+		$this->assertNull($cache->get('a'));
+	}
 }
