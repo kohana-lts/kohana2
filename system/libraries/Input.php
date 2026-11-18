@@ -484,9 +484,6 @@ class Input_Core {
 		$data = preg_replace('/(&#x*[0-9A-F]+);*/iu', '$1;', $data);
 		$data = html_entity_decode($data, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-		// Remove URL and style attributes that use a script or data scheme
-		$data = preg_replace_callback('#(?<=[\x00-\x20"\'/])(?:href|src|srcset|lowsrc|dynsrc|action|formaction|background|poster|style|xlink:href)[\x00-\x20]*=[\x00-\x20]*(?:"[^"]*+"?|\'[^\']*+\'?|[^\x00-\x20>]*+)#iu', array($this, 'xss_filter_attribute'), $data);
-
 		// Remove any attribute starting with "on" or xmlns
 		$data = preg_replace('#(?:on[a-z]+|xmlns)\s*=\s*[\'"\x00-\x20]?[^\'>"]*[\'"\x00-\x20]?\s?#iu', '', $data);
 
@@ -508,6 +505,10 @@ class Input_Core {
 			// Remove really unwanted tags
 			$old_data = $data;
 			$data = preg_replace('#<[\x00-\x20]*/*[\x00-\x20]*+(?:applet|b(?:ase|gsound|link)|embed|frame(?:set)?|i(?:frame|layer)|l(?:ayer|ink)|meta|object|s(?:cript|tyle)|title|xml)[^>]*+#i', '', $data);
+
+			// Remove URL and style attributes that use a script or data scheme.
+			// It runs last, because the removals above can join the parts of a scheme.
+			$data = preg_replace_callback('#(?<=[\x00-\x20"\'/])(?:href|src|srcset|lowsrc|dynsrc|action|formaction|background|poster|style|xlink:href)[\x00-\x20]*=[\x00-\x20]*(?:"[^"]*+"?|\'[^\']*+\'?|[^\x00-\x20>]*+)#iu', array($this, 'xss_filter_attribute'), $data);
 		}
 		while ($old_data !== $data);
 

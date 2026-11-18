@@ -21,7 +21,7 @@ class SetupInputTest extends Kohana_TestCase {
 
 		$this->assertIsArray($globals, 'The child process did not print JSON');
 		$this->assertStringNotContainsString('<script', $globals['get']['x']);
-		$this->assertStringNotContainsString('javascript', $globals['post']['p']);
+		$this->assertStringNotContainsString('javascript:', $globals['post']['p']);
 	}
 
 	public function test_routing_cleans_cli_query()

@@ -68,6 +68,9 @@ class InputXssTest extends Kohana_TestCase {
 			'data uri unquoted' => array('<iframe src=data:text/html,x></iframe><img src=data:text/html,x>', 'data:'),
 			'form action' => array('<form action="data:text/html,x"><button formaction="java&Tab;script:alert(1)">x</button></form>', 'script:'),
 			'vbscript' => array('<a href="vb&Tab;script:msgbox(1)">x</a>', 'vbscript:'),
+			'split by on attribute' => array('<a href="daonx=\'\'ta:text/html,x">x</a>', 'data:'),
+			'split by namespaced tag' => array('<a href="da<a:b>ta:text/html,x">x</a>', 'data:'),
+			'split by script tag' => array('<a href="da<script>ta:text/html,x">x</a>', 'data:'),
 			'style url' => array('<div style="background:url(jav&Tab;ascript:alert(1))">x</div>', 'javascript:'),
 		);
 	}
