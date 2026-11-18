@@ -46,22 +46,52 @@ class security_Core {
 	}
 
 	/**
-	 * Convert a string containing image tags into a string with the
-	 * image tags as html entities.
+	 * Replaces each `<img>` and `<image>` tag with its escaped `src` value.
+	 * This is not an HTML sanitizer: other tags stay. Use the 'htmlpurifier'
+	 * tool of xss_clean() for untrusted HTML.
+	 *
+	 * The old regular expression needed white space after "<img", so
+	 * "<img/src=x onerror=...>" passed (CVE-2016-10510).
 	 *
 	 * ###### Example
 	 *
-	 *     echo Kohana::debug(security::strip_image_tags('<image src="rambo-kitteh.png" alt="Rambo Kitteh!" />'));
-	 *     
+	 *     echo security::strip_image_tags('a <img src="kitteh.png" alt="Kitteh" /> b');
+	 *
 	 *     // Output:
-	 *     (string) &lt;image src=&quot;rambo-kitteh.png&quot; alt=&quot;Rambo Kitteh!&quot; /&gt;
+	 *     a kitteh.png b
 	 *
 	 * @param   string  $str String to sanitize
 	 * @return  string
 	 */
 	public static function strip_image_tags($str)
 	{
-		return preg_replace('#<img\s.*?(?:src\s*=\s*["\']?([^"\'<>\s]*)["\']?[^>]*)?>#is', '$1', $str);
+		$str = (string) $str;
+
+		// Repeat until stable, because a removal can join the parts of a new tag
+		do
+		{
+			$result = preg_replace_callback('#<(?:img|image)\b([^>]*)>?#i', function ($tag)
+			{
+				if (preg_match('#(?:^|[\s/])src\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+))#i', $tag[1], $src))
+				{
+					// The source never contains "<" after escaping
+					return html::chars(implode('', array_slice($src, 1)), FALSE);
+				}
+
+				return '';
+			}, $str, -1, $count);
+
+			if ($result === NULL)
+			{
+				// Fail closed on a PCRE error
+				return '';
+			}
+
+			$str = $result;
+		}
+		while ($count > 0);
+
+		return $str;
 	}
 
 } // End security
