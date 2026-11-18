@@ -377,7 +377,7 @@ class url_Core {
 		// Run the redirect event
 		Event::run('system.redirect', $uri);
 
-		if (strpos($uri, '://') === FALSE)
+		if ( ! preg_match('#^[a-z][a-z0-9+.-]*://#iD', $uri))
 		{
 			// A relative Location (RFC 7231) does not depend on the Host header
 			$uri = url::site($uri);
@@ -397,6 +397,95 @@ class url_Core {
 		Event::run('system.send_headers');
 
 		exit('<h1>'.$status.' - '.$codes[$status].'</h1>'.$output);
+	}
+
+	/**
+	 * Redirects to a page of this site only. Use it for redirect targets from
+	 * the request, for example a "return" parameter or [request::referrer].
+	 * A target that [url::local_uri] refuses gives a redirect to the base URL.
+	 *
+	 * ##### Example
+	 *
+	 *     url::redirect_local($this->input->get('return'));
+	 *
+	 * @param   string  site URI, site path or URL of this site
+	 * @param   string  HTTP status code, see [url::redirect]
+	 * @return  void
+	 */
+	public static function redirect_local($uri = '', $status = '302')
+	{
+		$uri = url::local_uri($uri);
+
+		return url::redirect(($uri === NULL) ? '' : $uri, $status);
+	}
+
+	/**
+	 * Converts a redirect target to a site URI for [url::site], or returns
+	 * NULL if the target can leave the site. Accepted targets:
+	 *
+	 * - a site URI, for example 'blog/post?page=2'
+	 * - a path under the base path, for example '/kohana/index.php/blog'
+	 * - an http or https URL under the base path, with the host of
+	 *   core.site_domain or a host of core.allowed_hosts ('*' does not count)
+	 *
+	 * Control characters, backslashes and leading spaces make the target
+	 * invalid, because browsers read "/\host" and "\t//host" as another host.
+	 *
+	 * @param   string  redirect target
+	 * @return  string|NULL  site URI, or NULL
+	 */
+	public static function local_uri($uri)
+	{
+		if ( ! is_string($uri) OR preg_match('/[\x00-\x1f\x7f\\\\]|^ /', $uri))
+			return NULL;
+
+		if (strncmp($uri, '//', 2) === 0 OR ($parts = parse_url($uri)) === FALSE)
+			return NULL;
+
+		$domain = (string) Kohana::config('core.site_domain', TRUE);
+		$domain_host = ($domain === '' OR $domain[0] === '/') ? '' : strtolower(strtok($domain, '/'));
+
+		if (isset($parts['scheme']) OR isset($parts['host']) OR isset($parts['user']) OR isset($parts['port']))
+		{
+			if ( ! isset($parts['scheme'], $parts['host']) OR isset($parts['user']) OR ! in_array(strtolower($parts['scheme']), array('http', 'https'), TRUE))
+				return NULL;
+
+			$host = strtolower($parts['host']).(isset($parts['port']) ? ':'.$parts['port'] : '');
+			$hosts = array_map('strtolower', array_map('strval', (array) Kohana::config('core.allowed_hosts')));
+
+			if ($host !== $domain_host AND ( ! in_array($host, $hosts, TRUE)))
+				return NULL;
+
+			// Keep the path, the query and the fragment
+			$uri = (isset($parts['path']) ? $parts['path'] : '/')
+				.(isset($parts['query']) ? '?'.$parts['query'] : '')
+				.(isset($parts['fragment']) ? '#'.$parts['fragment'] : '');
+		}
+
+		if ($uri !== '' AND $uri[0] === '/')
+		{
+			// A path must be under the base path
+			$base = rtrim(($domain_host === '') ? $domain : (string) strstr($domain, '/'), '/').'/';
+			$index = (string) Kohana::config('core.index_page');
+			$path = NULL;
+
+			foreach (($index === '') ? array($base) : array($base.$index.'/', $base) as $prefix)
+			{
+				if (strncmp($uri.'/', $prefix, strlen($prefix)) === 0)
+				{
+					$path = (string) substr($uri, strlen($prefix));
+					break;
+				}
+			}
+
+			$uri = $path;
+		}
+
+		// The site URI itself must be relative, for example not "http://host" or "/host"
+		if ($uri === NULL OR ($uri !== '' AND ($uri[0] === '/' OR ($parts = parse_url($uri)) === FALSE OR isset($parts['scheme']) OR isset($parts['host']))))
+			return NULL;
+
+		return $uri;
 	}
 
 } // End url

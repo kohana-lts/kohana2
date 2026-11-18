@@ -109,4 +109,62 @@ class UrlTest extends Kohana_TestCase {
 
 		$this->assertSame('https://www.example.com/kohana/index.php/', url::site());
 	}
+
+	public function provider_local_uri()
+	{
+		return array(
+			array('', ''),
+			array('welcome', 'welcome'),
+			array('blog/post?page=2#comments', 'blog/post?page=2#comments'),
+			array('/kohana/index.php/account', 'account'),
+			array('/kohana/index.php', ''),
+			array('/kohana/', ''),
+			array('/kohana', ''),
+			array('/kohana/media/x.css', 'media/x.css'),
+			array('https://www.example.com/kohana/index.php/account?x=1', 'account?x=1'),
+			array('http://example.com:8080/kohana/index.php/a', 'a'),
+			array('/other/app', NULL),
+			array('//evil.example', NULL),
+			array('///evil.example', NULL),
+			array('/\\evil.example', NULL),
+			array('\\\\evil.example', NULL),
+			array("\t//evil.example", NULL),
+			array(" //evil.example", NULL),
+			array("/kohana/\r\nX-Injected: 1", NULL),
+			array('https://evil.example/', NULL),
+			array('https://www.example.com.evil.example/kohana/', NULL),
+			array('http://www.example.com@evil.example/kohana/', NULL),
+			array('http:evil.example', NULL),
+			array('javascript:alert(1)', NULL),
+			array('ftp://www.example.com/kohana/', NULL),
+			array('/kohana/http://evil.example', NULL),
+			array('/kohana/index.php/https://evil.example/', NULL),
+			array('/kohana///evil.example?x=://', NULL),
+			array('/kohana/index.php//evil.example', NULL),
+			array('https://www.example.com/kohana/http://evil.example', NULL),
+			array('account?next=http://x', 'account?next=http://x'),
+			array(array('welcome'), NULL),
+		);
+	}
+
+	/**
+	 * @dataProvider provider_local_uri
+	 */
+	public function test_local_uri($uri, $expected)
+	{
+		$_SERVER['HTTP_HOST'] = 'evil.example';
+
+		$this->assertSame($expected, url::local_uri($uri));
+	}
+
+	public function test_local_uri_with_wildcard_hosts()
+	{
+		$this->set_config('core.allowed_hosts', array('*'));
+		$_SERVER['HTTP_HOST'] = 'evil.example';
+
+		$this->assertNull(url::local_uri('https://evil.example/kohana/index.php/a'));
+
+		$this->set_config('core.site_domain', 'site.example/kohana/');
+		$this->assertSame('a', url::local_uri('https://site.example/kohana/index.php/a'));
+	}
 }

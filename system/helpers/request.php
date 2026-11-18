@@ -60,6 +60,10 @@ class request_Core {
 	 * The second function argument is used to remove the base URL from the
 	 * referrer returned.
 	 *
+	 * [!!] The client sends the Referer header, so it can have any value or
+	 * be missing. Do not trust it. Escape it before output, and redirect to
+	 * it only with [url::redirect_local].
+	 *
 	 * ###### Example
 	 *
 	 *     echo request::referrer();
