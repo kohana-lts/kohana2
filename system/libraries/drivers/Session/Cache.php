@@ -74,6 +74,17 @@ class Session_Cache_Driver implements Session_Driver {
 		return '';
 	}
 
+	/**
+	 * Checks that the session exists in the cache, for session.use_strict_mode.
+	 *
+	 * @param   string   session id
+	 * @return  boolean
+	 */
+	public function validate_id($id)
+	{
+		return ! empty($this->cache->get('session_'.$id));
+	}
+
 	public function write($id, $data)
 	{
 		if ( ! Session::$should_save)

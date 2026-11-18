@@ -118,7 +118,7 @@ class Session_Core {
 	 *     // This is the idiomatic and preferred method of starting a session
 	 *     $session = Session::instance();
 	 *
-	 * @param string Force a specific session_id
+	 * @param string Force a specific session_id. It must exist in the storage, else PHP creates a new ID.
 	 */
 	public static function instance($session_id = NULL)
 	{
@@ -143,7 +143,7 @@ class Session_Core {
 	/**
 	 * On first session instance creation, sets up the driver and creates session.
 	 *
-	 * @param string Force a specific session_id
+	 * @param string Force a specific session_id. It must exist in the storage, else PHP creates a new ID.
 	 */
 	protected function __construct($session_id = NULL)
 	{
@@ -215,7 +215,7 @@ class Session_Core {
 	 *     // library is enough to create a new session, or retrieve data from an existing session.
 	 *
 	 * @param   array  variables to set after creation
-	 * @param   string Force a specific session_id
+	 * @param   string Force a specific session_id. It must exist in the storage, else PHP creates a new ID.
 	 * @return  void
 	 */
 	public function create($vars = NULL, $session_id = NULL)
@@ -269,19 +269,23 @@ class Session_Core {
 
 		session_set_cookie_params($params);
 
-		$cookie = cookie::get(Session::$config['name']);
-		
+		// Kohana sends and reads the signed session cookie. PHP must not take an
+		// unsigned ID from a cookie or the URL (session fixation).
+		ini_set('session.use_cookies', '0');
+		ini_set('session.use_only_cookies', '1');
+		ini_set('session.use_trans_sid', '0');
+
+		// PHP replaces an ID that the storage does not know with a new one
+		ini_set('session.use_strict_mode', '1');
+
 		if ($session_id === NULL)
 		{
 			// Reopen session from signed cookie value.
-			$session_id = $cookie;
+			$session_id = cookie::get(Session::$config['name']);
 		}
 
-		// Reopen an existing session if supplied
-		if ( ! is_null($session_id))
-		{
-			session_id($session_id);
-		}
+		// Without a valid signed cookie, start a new session with a new ID
+		session_id((is_string($session_id) AND $session_id !== '') ? $session_id : session_create_id());
 
 		// Start the session!
 		session_start();
@@ -378,14 +382,8 @@ class Session_Core {
 			$_SESSION['session_id'] = Session::$driver->regenerate();
 		}
 
-		// Get the session name
-		$name = session_name();
-
-		if (isset($_COOKIE[$name]))
-		{
-			// Change the cookie value to match the new session id to prevent "lag"
-			cookie::set($name, $_SESSION['session_id']);
-		}
+		// Send the new ID: PHP sends no session cookie (see create())
+		cookie::set(session_name(), $_SESSION['session_id'], Session::$config['expiration']);
 	}
 
 	/**

@@ -205,4 +205,56 @@ class SessionHttpTest extends Kohana_CgiTestCase {
 		$this->assertClean($third);
 		$this->assertFalse($third['results'][1]);
 	}
+
+	/**
+	 * @dataProvider provider_drivers
+	 */
+	public function test_unsigned_chosen_id_is_not_adopted($driver)
+	{
+		$this->use_driver($driver);
+
+		$response = $this->request(array(array('start')), array('kohanasession' => 'attackerchosen1234567890'));
+
+		$this->assertClean($response);
+		$this->assertNotSame('attackerchosen1234567890', $response['session_id']);
+		$this->assertStringEndsWith('~'.$response['session_id'], $response['cookies']['kohanasession']['value']);
+
+		$response = $this->request(array(array('start')), array(), array(), array('QUERY_STRING' => 'kohanasession=attackerchosen1234567890'));
+
+		$this->assertClean($response);
+		$this->assertNotSame('attackerchosen1234567890', $response['session_id']);
+	}
+
+	/**
+	 * @dataProvider provider_server_drivers
+	 */
+	public function test_signed_unknown_id_is_not_adopted($driver)
+	{
+		$this->use_driver($driver);
+
+		$this->set_config('cookie.salt', Kohana_CgiTestCase::SALT);
+		$this->set_config('cookie.user_agent', FALSE);
+
+		$id = 'attackerchosen1234567890';
+		$response = $this->request(array(array('start')), array('kohanasession' => cookie::salt('kohanasession', $id).'~'.$id));
+
+		$this->assertClean($response);
+		$this->assertNotSame($id, $response['session_id']);
+		$this->assertStringEndsWith('~'.$response['session_id'], $response['cookies']['kohanasession']['value']);
+	}
+
+	public function test_php_sends_no_unsigned_session_cookie()
+	{
+		$response = $this->request(array(array('start'), array('regenerate')));
+
+		$this->assertClean($response);
+
+		foreach ($response['headers'] as $header)
+		{
+			if (stripos($header, 'Set-Cookie: kohanasession=') === 0)
+			{
+				$this->assertMatchesRegularExpression('/^Set-Cookie: kohanasession=[0-9a-f]{64}~/', $header);
+			}
+		}
+	}
 }

@@ -97,6 +97,22 @@ class Session_Database_Driver implements Session_Driver {
 		return ($this->encrypt === NULL) ? base64_decode($data) : $this->encrypt->decode($data);
 	}
 
+	/**
+	 * Checks that a session row exists, for session.use_strict_mode.
+	 *
+	 * @param   string   session id
+	 * @return  boolean
+	 */
+	public function validate_id($id)
+	{
+		return db::select('session_id')
+			->from($this->table)
+			->where('session_id', '=', $id)
+			->limit(1)
+			->execute($this->db)
+			->count() > 0;
+	}
+
 	public function write($id, $data)
 	{
 		if ( ! Session::$should_save)
