@@ -27,41 +27,41 @@ To report a new problem, see [README.md](README.md#report-a-security-problem).
 
 | ID | Problem | Label | Severity | Commit |
 |----|---------|-------|----------|--------|
-| K2-01 | `xss_clean()` bypasses of tickets #2669, #2710 and #2771 (fixed upstream after the 2.4 tag; this fork adds regression tests) | Upstream ticket | Medium | `9706d594` |
-| K2-02 | Reflected XSS on the debug error page and the 404 page | Hardening | Medium | `c0dc5a8d`, `2b46ed0f` |
-| K2-03 | Reflected XSS in the shipped Welcome controller | Hardening | Medium | `659acccd` |
-| K2-04 | SQL injection through the `order_by()` direction | Hardening | High | `96acdf9f` |
-| K2-05 | The cookie session driver let the client forge session data and inject PHP objects (with the public default salt) | Hardening | High | `13d21ef5`, `75ab9c5e` |
-| K2-06 | Session fixation: the session adopted an ID that the client chose | Hardening | High | `12c5a42c` |
-| K2-07 | `Encrypt` had no MAC, needed mcrypt (removed in PHP 7.2) and shipped a public default key. The internal cache used mcrypt in ECB mode | Hardening | Medium | `628c4ae3`, `7be67c8f`, `8d52a1a5` |
-| K2-08 | The cookie signature was `sha1()` of concatenated values, compared with `===` | Hardening | Low to medium | `db8b7f6f` |
-| K2-09 | Client IP spoofing through X-Forwarded-For and Client-IP in `Input::ip_address()` | Hardening | Medium | `887f82c6` |
-| K2-10 | Global input cleaning and `global_xss_filtering` did not run unless code created Input | Hardening | Medium | `3ebbbef9`, `96075121` |
-| K2-11 | `xss_clean()` bypasses with HTML5 entities and `data:` URLs | Hardening | Medium | `8bda4f80`, `23298f85` |
-| K2-12 | Host header injection in absolute URLs and redirects | Hardening | Medium | `e694b3ab` |
-| K2-13 | HTML and form helpers printed data values without escaping | Hardening | Low to medium | `f26fa863` |
-| K2-14 | `valid::url()` and `html::anchor()` accepted `javascript:` URLs | Hardening | Medium | `6d817d23` |
-| K2-15 | Identifier and operator injection in the query builder | Hardening | Medium | `0910331e`, `eb246ff9` |
-| K2-16 | `upload::save()` kept the client file name, `upload::type()` checked only the extension, uploads went under DOCROOT | Hardening | Medium | `41bb2f25` |
-| K2-17 | Path traversal in `Kohana::find_file()` (views, i18n, messages) | Hardening | Medium | `dc0dd171` |
-| K2-18 | The file cache driver used cache keys as `glob()` patterns | Hardening | Medium | `345db16d`, `a0775e51` |
-| K2-19 | No CSRF protection: new `csrf` helper | Hardening | Medium | `b048104e` |
-| K2-20 | The Profiler rendered in production and printed some values raw | Hardening | Low to medium | `5186c592` |
-| K2-21 | `index.php` ran `install.php` in production. An orphan Captcha controller | Hardening | Low | `965ed8a1` |
-| K2-22 | `text::random()` used `mt_rand()` | Hardening | Low | `204044da` |
-| K2-23 | No safe redirect for untrusted targets: new `url::redirect_local()` | Hardening | Low | `717f0159` |
-| K2-24 | `Input` stopped the request on a bad cookie name, unsafe download file names, `feed::parse()` read files and URLs | Hardening | Low | `6adfeb89` |
-| K2-25 | ORM mass assignment: `set(array)` and `load_values()` accepted the primary key and many-to-many relations | Hardening | Medium | `cfed7a95` |
-| K2-27 | XSS: `security::strip_image_tags()` bypass ([CVE-2016-10510](https://nvd.nist.gov/vuln/detail/CVE-2016-10510), Debian DLA-1241-1) | CVE | Medium | `df22b31d` |
-| K2-26 | The shutdown handler showed an error page for errors that code silenced with `@` | Hardening | Low | `f0e45abd` |
+| K2-01 | `xss_clean()` bypasses of tickets #2669, #2710 and #2771 (fixed upstream after the 2.4 tag; this fork adds regression tests) | Upstream ticket | Medium | `efd11f50` |
+| K2-02 | Reflected XSS on the debug error page and the 404 page | Hardening | Medium | `10277b14`, `9e233b0b` |
+| K2-03 | Reflected XSS in the shipped Welcome controller | Hardening | Medium | `a7ec78c4` |
+| K2-04 | SQL injection through the `order_by()` direction | Hardening | High | `8a81b961` |
+| K2-05 | The cookie session driver let the client forge session data and inject PHP objects (with the public default salt) | Hardening | High | `aedf4c42`, `eee807e8` |
+| K2-06 | Session fixation: the session adopted an ID that the client chose | Hardening | High | `1b9c084a` |
+| K2-07 | `Encrypt` had no MAC, needed mcrypt (removed in PHP 7.2) and shipped a public default key. The internal cache used mcrypt in ECB mode | Hardening | Medium | `97d2758c`, `a2e02df6`, `fda4cb57` |
+| K2-08 | The cookie signature was `sha1()` of concatenated values, compared with `===` | Hardening | Low to medium | `e709634a` |
+| K2-09 | Client IP spoofing through X-Forwarded-For and Client-IP in `Input::ip_address()` | Hardening | Medium | `65247086` |
+| K2-10 | Global input cleaning and `global_xss_filtering` did not run unless code created Input | Hardening | Medium | `fbb5efd8`, `2a34c201` |
+| K2-11 | `xss_clean()` bypasses with HTML5 entities and `data:` URLs | Hardening | Medium | `2b231157`, `c555b300` |
+| K2-12 | Host header injection in absolute URLs and redirects | Hardening | Medium | `88503e49` |
+| K2-13 | HTML and form helpers printed data values without escaping | Hardening | Low to medium | `3f54f71b` |
+| K2-14 | `valid::url()` and `html::anchor()` accepted `javascript:` URLs | Hardening | Medium | `4cb6e0dc` |
+| K2-15 | Identifier and operator injection in the query builder | Hardening | Medium | `9b8279f4`, `3aca13e7` |
+| K2-16 | `upload::save()` kept the client file name, `upload::type()` checked only the extension, uploads went under DOCROOT | Hardening | Medium | `4b89a7e4` |
+| K2-17 | Path traversal in `Kohana::find_file()` (views, i18n, messages) | Hardening | Medium | `edaa2f3f` |
+| K2-18 | The file cache driver used cache keys as `glob()` patterns | Hardening | Medium | `ccc3318b`, `82ceb6c3` |
+| K2-19 | No CSRF protection: new `csrf` helper | Hardening | Medium | `6840b378` |
+| K2-20 | The Profiler rendered in production and printed some values raw | Hardening | Low to medium | `8651a1b8` |
+| K2-21 | `index.php` ran `install.php` in production. An orphan Captcha controller | Hardening | Low | `d4385dc4` |
+| K2-22 | `text::random()` used `mt_rand()` | Hardening | Low | `6af58978` |
+| K2-23 | No safe redirect for untrusted targets: new `url::redirect_local()` | Hardening | Low | `e075525a` |
+| K2-24 | `Input` stopped the request on a bad cookie name, unsafe download file names, `feed::parse()` read files and URLs | Hardening | Low | `e9dda8ea` |
+| K2-25 | ORM mass assignment: `set(array)` and `load_values()` accepted the primary key and many-to-many relations | Hardening | Medium | `629df0e9` |
+| K2-27 | XSS: `security::strip_image_tags()` bypass ([CVE-2016-10510](https://nvd.nist.gov/vuln/detail/CVE-2016-10510), Debian DLA-1241-1) | CVE | Medium | `cc12f1bd` |
+| K2-26 | The shutdown handler showed an error page for errors that code silenced with `@` | Hardening | Low | `a39da6d4` |
 
 ## PHP 8 problems with a security effect
 
 - The `mysql` database driver used ext/mysql, which PHP 7.0 removed
-  (`5df0f800`).
-- `ORM::with()` threw a TypeError on PHP 8 (`cfed7a95`).
+  (`9ae22c58`).
+- `ORM::with()` threw a TypeError on PHP 8 (`629df0e9`).
 - Session drivers now register as a `SessionHandlerInterface` object
-  (`f14f3c7b`). The database driver `regenerate()` left the old session ID
+  (`449d22be`). The database driver `regenerate()` left the old session ID
   valid; this is fixed in the same commit.
 
 ## Open
