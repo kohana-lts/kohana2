@@ -105,6 +105,20 @@ class EncryptTest extends Kohana_TestCase {
 		$this->assertFalse($this->encrypt(array('key' => $key, 'mode' => $mode))->decode($encoded));
 	}
 
+	public function test_old_public_key_is_refused()
+	{
+		$this->expectException(Kohana_Exception::class);
+
+		new Encrypt(array('key' => 'K0H@NA+PHP_7hE-SW!FtFraM3w0R|<'));
+	}
+
+	public function test_old_public_key_works_for_legacy_decoding()
+	{
+		$encrypt = new Encrypt(array('key' => 'K0H@NA+PHP_7hE-SW!FtFraM3w0R|<', 'legacy' => TRUE));
+
+		$this->assertSame('x', $encrypt->decode($encrypt->encode('x')));
+	}
+
 	public function test_no_default_key()
 	{
 		$this->expectException(Kohana_Exception::class);

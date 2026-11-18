@@ -107,6 +107,10 @@ class Encrypt_Core {
 		if ( ! isset($config['key']) OR (string) $config['key'] === '')
 			throw new Kohana_Exception('To use the Encrypt library, you must set an encryption key in your config file');
 
+		// The default key of Kohana 2.x releases is public, so it protects nothing
+		if ($config['key'] === 'K0H@NA+PHP_7hE-SW!FtFraM3w0R|<' AND empty($config['legacy']))
+			throw new Kohana_Exception('The encryption key is the public default key of Kohana 2. Set a new random key');
+
 		$this->encryption_key = hash_hkdf('sha256', (string) $config['key'], 32, 'kohana-encrypt-aes-256-cbc');
 		$this->mac_key        = hash_hkdf('sha256', (string) $config['key'], 32, 'kohana-encrypt-hmac-sha256');
 
