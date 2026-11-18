@@ -25,8 +25,8 @@
  */
 class Database_Builder_Core {
 
-	// Valid ORDER BY directions
-	protected $order_directions = array('ASC', 'DESC', 'RAND()');
+	// Valid ORDER BY directions. Use a Database_Expression for anything else.
+	protected $order_directions = array('ASC', 'DESC');
 
 	// Database object
 	protected $db;
@@ -492,12 +492,15 @@ class Database_Builder_Core {
 	}
 
 	/**
-	 * Add fields to the ORDER BY portion
+	 * Add fields to the ORDER BY portion. The direction must be ASC or DESC
+	 * (any case), NULL, or a [Database_Expression]. For a random order use
+	 * `order_by(db::expr('RAND()'))`.
 	 *
 	 * @chainable
-	 * @param  mixed   Field names or an array of fields (field => direction)
-	 * @param  string  Direction or NULL for ascending
-	 * @return Database_Builder
+	 * @param   mixed   Field name, Database_Expression, or an array of fields (field => direction)
+	 * @param   mixed   ASC, DESC, NULL or a Database_Expression
+	 * @return  Database_Builder
+	 * @throws  Database_Exception  for any other direction
 	 */
 	public function order_by($columns, $direction = NULL)
 	{
@@ -507,20 +510,46 @@ class Database_Builder_Core {
 			{
 				if (is_string($column))
 				{
-					$this->order_by[] = array($column => $direction);
+					$this->order_by[] = array($column, $this->order_direction($direction));
 				}
 				else
 				{
 					// $direction is the column name when the array key is numeric
-					$this->order_by[] = array($direction => NULL);
+					$this->order_by[] = array($direction, NULL);
 				}
 			}
 		}
 		else
 		{
-			$this->order_by[] = array($columns => $direction);
+			$this->order_by[] = array($columns, $this->order_direction($direction));
 		}
 		return $this;
+	}
+
+	/**
+	 * Validates and normalizes an ORDER BY direction (K2-04).
+	 *
+	 * @param   mixed  direction
+	 * @return  mixed  NULL, an upper case direction or a Database_Expression
+	 * @throws  Database_Exception
+	 */
+	protected function order_direction($direction)
+	{
+		if ($direction === NULL OR $direction instanceof Database_Expression)
+			return $direction;
+
+		if (is_string($direction))
+		{
+			$direction = strtoupper(trim($direction));
+
+			if ($direction === '')
+				return NULL;
+
+			if (in_array($direction, $this->order_directions, TRUE))
+				return $direction;
+		}
+
+		throw new Database_Exception('Invalid ORDER BY direction, use ASC, DESC or a Database_Expression');
 	}
 
 	/**
@@ -1193,19 +1222,21 @@ class Database_Builder_Core {
 	{
 		$ordering = array();
 
-		foreach ($this->order_by as $column => $order_by)
+		foreach ($this->order_by as $order_by)
 		{
-			$direction = reset($order_by);
-			$column = key($order_by);
+			list($column, $direction) = $order_by;
 
-			$column = $this->db->quote_column($column);
+			if ( ! $column instanceof Database_Expression)
+			{
+				$column = $this->db->quote_column($column);
+			}
 
 			if ($direction !== NULL)
 			{
-				$direction = ' '.$direction;
+				$column .= ' '.$direction;
 			}
 
-			$ordering[] = $column.$direction;
+			$ordering[] = $column;
 		}
 
 		return implode(', ', $ordering);
